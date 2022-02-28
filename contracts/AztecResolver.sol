@@ -30,33 +30,33 @@ contract AztecResolver {
   }
 
   function withdraw(
-    bytes calldata _withdrawProof,
-    bytes calldata _resolveProof,
-    bytes calldata _settlementProof,
-    bytes32 _root,
-    bytes32 _nullifierHash,
-    address payable _recipient,
-    address payable _relayer,
-    address payable _payee,
-    uint256 _fee,
-    uint256 _refund
+    bytes calldata withdrawalProof,
+    bytes calldata resolverProof,
+    bytes calldata settlementProof,
+    bytes32 root,
+    bytes32 nullifierHash,
+    address payable recipient,
+    address payable relayer,
+    address payable payee,
+    uint256 fee,
+    uint256 refund
   ) public {
-    require(_recipient == address(this) && _payee != address(0x0));
-    require(!tornadoRouter.isSpent(_nullifierHash));
+    require(recipient == address(this) && payee != address(0x0));
+    require(!tornadoRouter.isSpent(nullifierHash));
     require(
       snarkVerifier.verifyProof(
-        _resolveProof, [ uint256(_nullifierHash), uint256(_payee) ]
+        resolveProof, [ uint256(nullifierHash), uint256(payee) ]
       ), "Invalid resolution proof"
     );
 
     torandoRouter.withdraw(
-      _withdrawProof, _root, _nullifierHash, _recipient, _relayer, _fee, _refund
+      withdrawalProof, root, nullifierHash, recipient, relayer, fee, refund
     );
 
-    require(tornadoRouter.isSpent(_nullifierHash));
+    require(tornadoRouter.isSpent(nullifierHash));
 
     aztecProcessor.makePendingDeposit(
-      0, address(this).balance, _payee, _settlementProof
+      0, address(this).balance, payee, settlementProof
     );
   }
 

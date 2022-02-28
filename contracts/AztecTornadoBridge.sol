@@ -16,11 +16,11 @@ contract AztecTornadoBridge is IDefiBridge {
   uint256 constant MINIMUM_DEPOSIT = 1 ether;
 
   constructor(
-    address _rollupProcessor,
-    address _tornadoProxy
+    address rollupContract,
+    address tornadoProxy
   ) public {
-    tornadoRouter = ITornadoProxy(_tornadoProxy);
-    rollupProcessor = _rollupProcessor;
+    tornadoRouter = ITornadoProxy(tornadoProxy);
+    rollupProcessor = rollupContract;
   }
 
   function convert(
@@ -80,7 +80,5 @@ contract AztecTornadoBridge is IDefiBridge {
 
     return(0, 0, false);
   }
-
-
 
 }
