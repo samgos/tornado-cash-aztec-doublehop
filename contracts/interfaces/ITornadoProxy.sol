@@ -2,6 +2,19 @@ pragma solidity 0.8.0;
 
 interface ITornadoProxy {
 
+  enum InstanceState { DISABLED, ENABLED, MINEABLE }
+
+  struct Instance {
+    bool isERC20;
+    IERC20 token;
+    InstanceState state;
+   }
+
+  struct Tornado {
+    ITornadoInstance addr;
+    Instance instance;
+   }
+
   function deposit(
     ITornadoInstance _tornado,
     bytes32 _commitment,
