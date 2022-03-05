@@ -2,6 +2,7 @@ pragma solidity 0.8.0;
 
 import "./interfaces/IRollupProcessor.sol";
 import "./interfaces/ITornadoProxy.sol";
+import "./interfaces/IVerifier.sol";
 
 contract AztecResolver {
 

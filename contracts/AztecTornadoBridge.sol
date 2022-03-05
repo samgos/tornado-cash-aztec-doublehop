@@ -9,7 +9,7 @@ contract AztecTornadoBridge is IDefiBridge {
 
   address public immutable rollupProcessor;
 
-  address constant TONRADO_1ETH = 0x47CE0C6eD5B0Ce3d3A51fdb1C52DC66a7c3c2936;
+  address constant TORNADO_1ETH = 0x47CE0C6eD5B0Ce3d3A51fdb1C52DC66a7c3c2936;
   address constant TORNADO_10ETH = 0x910Cbd523D972eb0a6f4cAe4618aD62622b39DbF;
 
   uint256 constant MAXIMUM_DEPOSIT = 10 ether;
