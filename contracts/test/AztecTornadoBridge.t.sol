@@ -6,7 +6,11 @@ import { Vm } from "./ds/Vm.sol";
 import { DefiBridgeProxy } from "../aztec/DefiBridgeProxy.sol";
 import { RollupProcessor } from "../aztec/RollupProcessor.sol";
 
-// Example-specific imports
+import { ETHTornado } from "../tornado/ETHTornado.sol";
+import { TornadoProxy } from "../tornado/TornadoProxy.sol";
+import { TornadoVerifier } from "../tornado/Verifier.sol";
+import { TornadoHasher } from "../tornado/Hasher.sol";
+
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { AztecTornadoBridge } from "../AztecTornadoBridge.sol";
 
@@ -22,6 +26,12 @@ contract AztecTornadoBridgeTest is DSTest {
     RollupProcessor rollupProcessor;
 
     AztecTornadoBridge aztecTornadoBridge;
+    ETHTornado oneEtherAnonymitySet;
+    ETHTornado tenEtherAnonymitySet;
+    TornadoProxy tornadoRouter;
+
+    IHasher tornadoHasher;
+    TornadoVerifier snarkVerifier;
 
     function _aztecPreSetup() internal {
         defiBridgeProxy = new DefiBridgeProxy();
@@ -29,19 +39,38 @@ contract AztecTornadoBridgeTest is DSTest {
     }
 
     function _tornadoPreSetup() internal {
-      // initialise contracts
+        tornadoHasher = new TornadoHasher();
+        snarkVerifier = new TornadoVerifier();
+        oneEtherAnonymitySet = new ETHTornado(
+          snarkVerifier, tornadoHasher, 1 ether, 16
+        );
+        tenEtherAnonymitySet = new ETHTornado(
+          snarkVerifier, tornadoHasher, 10 ether, 16
+        );
+        tornadoRouter = new TornadoProxy(
+          address(0x0), address(this),
+          [
+            new Tornado(
+              oneEtherAnonymitySet,
+              Instance(false, address(0x0), InstanceState.ENABLED)
+            ),
+            new Tornado(
+              tenEtherAnonymitySet,
+              Instance(false, address(0x0), InstanceState.ENABLED)
+            )
+          ]
+        );
     }
 
     function setUp() public {
         _aztecPreSetup();
         _tornadoPreSetup();
 
-        aztecTornadoBridge = new AztecTornadoBridge();
+        aztecTornadoBridge = new AztecTornadoBridge(address(this), torandoRouter);
     }
 
 
     function testAztecTornadoBridge() public {}
-
 
     function assertNotEq(address a, address b) internal {
         if (a == b) {
