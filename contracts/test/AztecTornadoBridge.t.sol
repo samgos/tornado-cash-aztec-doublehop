@@ -30,7 +30,7 @@ contract AztecTornadoBridgeTest is DSTest {
     ETHTornado tenEtherAnonymitySet;
     TornadoProxy tornadoRouter;
 
-    IHasher tornadoHasher;
+    TornadoHasher tornadoHasher;
     TornadoVerifier snarkVerifier;
 
     function _aztecPreSetup() internal {
@@ -66,11 +66,18 @@ contract AztecTornadoBridgeTest is DSTest {
         _aztecPreSetup();
         _tornadoPreSetup();
 
-        aztecTornadoBridge = new AztecTornadoBridge(address(this), torandoRouter);
+        aztecTornadoBridge = new AztecTornadoBridge(address(this), tornadoRouter);
     }
 
-
-    function testAztecTornadoBridge() public {}
+    function testAztecTornadoBridge() public {
+      AztecTypes.AztecAsset memory altAssets;
+      AztecTypes.AztecAsset memory inputAsset = AztecTypes.AztecAsset({
+          id: 1,
+          erc20Address: address(0x0),
+          assetType: AztecTypes.AztecAssetType.ETH
+      });
+      altAssets.assetType = AztecTypes.AztecAssetType.ETH;
+    }
 
     function assertNotEq(address a, address b) internal {
         if (a == b) {
@@ -80,7 +87,6 @@ contract AztecTornadoBridgeTest is DSTest {
             fail();
         }
     }
-
 
     function _setTokenBalance(
         address token,
