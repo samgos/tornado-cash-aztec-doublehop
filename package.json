@@ -22,7 +22,11 @@
     "ethers": "^5.5.4",
     "hardhat": "^2.8.3",
     "jest": "^27.5.0",
-    "typescript": "^4.5.5"
+    "circom": "^0.5.46",
+    "circom_runtime": "^0.1.12",
+    "circomlib": "github:tornadocash/circomlib#d20d53411d1bef61f38c99a8b36d5d0cc4836aa1",
+    "typescript": "^4.5.5",
+    "snarkjs": "^0.4.7"
   },
   "jest": {
     "transform": {
@@ -31,10 +35,10 @@
     "testRegex": ".*\\.test\\.ts$",
     "rootDir": "./src"
   },
-  "name": "@aztec/bridge-clients",
+  "name": "tornado-cash-aztec-doublehop",
   "version": "0.0.1",
-  "description": "This repo contains the solidity files and typescript helper class for all of the Aztec Connect Bridge Contracts",
-  "repository": "git@github.com:AztecProtocol/aztec-connect-bridges.git",
+  "description": "",
+  "repository": "git@github.com:samgos/tornado-cash-aztec-doublehop.git",
   "license": "MIT",
   "devDependencies": {
     "@typechain/ethers-v5": "^9.0.0",

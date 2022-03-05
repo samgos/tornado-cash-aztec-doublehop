@@ -1,90 +1,46 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.10;
 
-import {Vm} from "../Vm.sol";
+import { Vm } from "./ds/Vm.sol";
 
-import {DefiBridgeProxy} from "./../../aztec/DefiBridgeProxy.sol";
-import {RollupProcessor} from "./../../aztec/RollupProcessor.sol";
+import { DefiBridgeProxy } from "../aztec/DefiBridgeProxy.sol";
+import { RollupProcessor } from "../aztec/RollupProcessor.sol";
 
 // Example-specific imports
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {ExampleBridgeContract} from "./../../bridges/example/ExampleBridge.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { AztecTornadoBridge } from "../AztecTornadoBridge.sol";
 
-import {AztecTypes} from "./../../aztec/AztecTypes.sol";
+import { AztecTypes } from "../aztec/AztecTypes.sol";
 
+import "../../lib/ds-test/src/test.sol";
 
-import "../../../lib/ds-test/src/test.sol";
-
-
-contract ExampleTest is DSTest {
+contract AztecTornadoBridgeTest is DSTest {
 
     Vm vm = Vm(0x7109709ECfa91a80626fF3989D68f67F5b1DD12D);
 
     DefiBridgeProxy defiBridgeProxy;
     RollupProcessor rollupProcessor;
 
-    ExampleBridgeContract exampleBridge;
-
-    IERC20 constant dai = IERC20(0x6B175474E89094C44Da98b954EedeAC495271d0F);
-
+    AztecTornadoBridge aztecTornadoBridge;
 
     function _aztecPreSetup() internal {
         defiBridgeProxy = new DefiBridgeProxy();
         rollupProcessor = new RollupProcessor(address(defiBridgeProxy));
     }
 
+    function _tornadoPreSetup() internal {
+      // initialise contracts
+    }
+
     function setUp() public {
         _aztecPreSetup();
+        _tornadoPreSetup();
 
-        exampleBridge = new ExampleBridgeContract(
-            address(rollupProcessor)
-        );
-
-        _setTokenBalance(address(dai), address(0xdead), 42069);
+        aztecTornadoBridge = new AztecTornadoBridge();
     }
 
 
-    function testExampleBridge() public {
-       uint256 depositAmount = 15000;
-        _setTokenBalance(address(dai), address(rollupProcessor), depositAmount);
-
-
-        AztecTypes.AztecAsset memory empty;
-        AztecTypes.AztecAsset memory inputAsset = AztecTypes.AztecAsset({
-            id: 1,
-            erc20Address: address(dai),
-            assetType: AztecTypes.AztecAssetType.ERC20
-        });
-        AztecTypes.AztecAsset memory outputAsset = AztecTypes.AztecAsset({
-            id: 1,
-            erc20Address: address(dai),
-            assetType: AztecTypes.AztecAssetType.ERC20
-        });
-
-        (
-            uint256 outputValueA,
-            uint256 outputValueB,
-            bool isAsync
-        ) = rollupProcessor.convert(
-                address(exampleBridge),
-                inputAsset,
-                empty,
-                outputAsset,
-                empty,
-                depositAmount,
-                1,
-                0
-            );
-
-        uint256 rollupDai = dai.balanceOf(address(rollupProcessor));
-
-        assertEq(
-            depositAmount,
-            rollupDai,
-            "Balances must match"
-        );
-
-    }
+    function testAztecTornadoBridge() public {}
 
 
     function assertNotEq(address a, address b) internal {
@@ -112,7 +68,5 @@ contract ExampleTest is DSTest {
 
         assertEq(IERC20(token).balanceOf(user), balance, "wrong balance");
     }
-
-
 
 }

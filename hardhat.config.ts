@@ -7,6 +7,9 @@ const config: HardhatUserConfig = {
       {
         version: '0.8.10',
       },
+      {
+        version: '0.7.0',
+      }
     ],
     settings: {
       evmVersion: 'london',
