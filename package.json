@@ -6,13 +6,14 @@
     "compile:contracts": "forge build",
     "compile:typechain": "forge build && hardhat compile ",
     "compile:client-dest": "tsc --project tsconfig.client-dest.json && node package-client-dest.js",
-    "compile:hasher": "mkdir out && mkdir out/Hasher.sol && yarn node ./scripts/compileHasher.js",
+    "compile:hasher": "ts-node ./scripts/compile_hasher.ts",
     "clean": "rm -rf ./cache ./dest ./out ./artifacts ./typechain-types",
     "test": "yarn test:contracts && yarn test:clients",
     "test:client": "jest test",
     "test:contracts": "forge test -vvv",
     "build": "yarn clean && yarn compile:typechain && yarn compile:client-dest",
-    "build:circuits": "scripts/buildCircuits.sh resolverWithdraw && scripts/buildCircuits.sh withdraw"
+    "build:circuits": "ts-node ./scripts/build_circuits.ts",
+    "build:verifier": "ts-node ./scripts/build_verifier.ts"
   },
   "dependencies": {
     "@ethersproject/constants": "^5.5.0",
