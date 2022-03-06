@@ -1,4 +1,4 @@
-pragma solidity 0.8.0;
+pragma solidity >=0.8.4 <0.8.11;
 
 import "./interfaces/IDefiBridge.sol";
 import "./interfaces/ITornadoProxy.sol";
@@ -71,11 +71,12 @@ contract AztecTornadoBridge is IDefiBridge {
       "AztecTornadoBridge: AUX_AMOUNT_MISMATCH"
     );
 
-    address tornadoInstance = msg.value == MINIMUM_DEPOSIT ?
+    address anonymitySet = msg.value == MINIMUM_DEPOSIT ?
       TORNADO_1ETH : TORNADO_10ETH;
+    bytes memory empty;
 
     tornadoRouter.deposit(
-      tornadoInstance, commitment, bytes(0x0)
+      ITornadoInstance(anonymitySet), commitment, empty
     );
 
     return(0, 0, false);

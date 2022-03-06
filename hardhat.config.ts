@@ -18,7 +18,7 @@ const config: HardhatUserConfig = {
       evmVersion: 'london',
       optimizer: { enabled: true, runs: 200 },
     },
-  },
+  },]Z
   typechain: {
     target: 'ethers-v5',
   },
@@ -28,6 +28,9 @@ const config: HardhatUserConfig = {
     },
     hardhat: {
       blockGasLimit: 15000000,
+      accounts: {
+         count: 1,
+       }
     },
   },
   paths: {
