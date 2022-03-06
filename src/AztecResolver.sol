@@ -31,7 +31,6 @@ contract AztecResolver {
   }
 
   function withdraw(
-    ITornadoInstance instance,
     bytes calldata withdrawalProof,
     bytes calldata resolverProof,
     bytes calldata settlementProof,
@@ -40,24 +39,25 @@ contract AztecResolver {
     address payable recipient,
     address payable relayer,
     address payable payee,
+    address instance,
     uint256 fee,
     uint256 refund
   ) public {
     require(recipient == address(this) && payee != address(0x0));
-    require(!instance.isSpent(nullifierHash));
+    require(!ITornadoInstance(instance).isSpent(nullifierHash));
     require(
       snarkVerifier.verifyProof(
         resolverProof, [ uint256(nullifierHash), uint256(payee) ]
-      ), "Invalid resolution proof"
+      ), "Invalid resolver proof"
     );
 
-    instance.withdraw(
+    ITornadoInstance(instance).withdraw(
       withdrawalProof, root, nullifierHash, recipient, relayer, fee, refund
     );
 
-    require(instance.isSpent(nullifierHash));
+    require(ITornadoInstance(instance).isSpent(nullifierHash));
 
-    aztecProcessor.makePendingDeposit.value(address(this).balance)(
+    aztecProcessor.depositPendingFunds.value(address(this).balance)(
       0, address(this).balance, payee, settlementProof
     );
   }

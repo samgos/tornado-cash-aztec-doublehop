@@ -10,7 +10,8 @@
     "test": "yarn test:contracts && yarn test:clients",
     "test:client": "jest test",
     "test:contracts": "forge test -vvv",
-    "build": "yarn clean && yarn compile:typechain && yarn compile:client-dest"
+    "build": "yarn clean && yarn compile:typechain && yarn compile:client-dest",
+    "build:circuits": "scripts/buildCircuits.sh resolverWithdraw && scripts/buildCircuits.sh withdraw"
   },
   "dependencies": {
     "@ethersproject/constants": "^5.5.0",

@@ -1,4 +1,4 @@
-import "./CommitmentHasher.circom";
+import "./commitmentHasher.circom";
 
 template AztecResolverWithdraw() {
     signal public input nullifierHash;

@@ -18,7 +18,7 @@ const config: HardhatUserConfig = {
       evmVersion: 'london',
       optimizer: { enabled: true, runs: 200 },
     },
-  },]Z
+  },
   typechain: {
     target: 'ethers-v5',
   },
@@ -36,6 +36,14 @@ const config: HardhatUserConfig = {
   paths: {
     sources: 'src/',
     artifacts: './artifacts',
+  },
+  external: {
+    command: 'node ./src/scripts/compileHasher.js',
+    targets: [
+      {
+        path: './out/Hasher.sol/Hasher.json',
+      },
+    ],
   },
 };
 

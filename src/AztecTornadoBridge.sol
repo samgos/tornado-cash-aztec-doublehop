@@ -3,7 +3,7 @@ pragma solidity >=0.8.4 <0.8.11;
 import "./interfaces/IDefiBridge.sol";
 import "./interfaces/ITornadoProxy.sol";
 
-contract AztecTornadoBridge is IDefiBridge {
+contract AztecTornadoBridge {
 
   ITornadoProxy tornadoRouter;
 
