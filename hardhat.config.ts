@@ -36,15 +36,7 @@ const config: HardhatUserConfig = {
   paths: {
     sources: 'src/',
     artifacts: './artifacts',
-  },
-  external: {
-    command: 'node ./src/scripts/compileHasher.js',
-    targets: [
-      {
-        path: './out/Hasher.sol/Hasher.json',
-      },
-    ],
-  },
+  }
 };
 
 export default config;

@@ -6,6 +6,7 @@
     "compile:contracts": "forge build",
     "compile:typechain": "forge build && hardhat compile ",
     "compile:client-dest": "tsc --project tsconfig.client-dest.json && node package-client-dest.js",
+    "compile:hasher": "mkdir out && mkdir out/Hasher.sol && yarn node ./scripts/compileHasher.js",
     "clean": "rm -rf ./cache ./dest ./out ./artifacts ./typechain-types",
     "test": "yarn test:contracts && yarn test:clients",
     "test:client": "jest test",
@@ -29,7 +30,8 @@
     "hardhat": "^2.8.3",
     "jest": "^27.5.0",
     "snarkjs": "^0.4.7",
-    "typescript": "^4.5.5"
+    "typescript": "^4.5.5",
+    "web3-utils": "^1.3.4"
   },
   "jest": {
     "transform": {
