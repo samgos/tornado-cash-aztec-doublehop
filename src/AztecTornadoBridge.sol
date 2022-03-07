@@ -31,7 +31,7 @@ contract AztecTornadoBridge {
     uint256 inputValue,
     uint256 interactionNonce,
     uint64 auxData
-  ) public payable returns (
+  ) payable public returns (
     uint256 outputValueA,
     uint256 outputValueB,
     bool isAsync

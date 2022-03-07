@@ -3,16 +3,14 @@ pragma solidity >=0.8.4 <0.8.11;
 
 import { Vm } from "./ds/Vm.sol";
 
-import { DefiBridgeProxy } from "../aztec/DefiBridgeProxy.sol";
-import { RollupProcessor } from "../aztec/RollupProcessor.sol";
-
+import { IERC20 } from "@openzeppelin/contracts/v4/token/ERC20/IERC20.sol";
 import { ITornadoProxy, ITornadoInstance } from "../interfaces/ITornadoProxy.sol";
 import { IVerifier } from "../interfaces/IVerifier.sol";
 import { IHasher } from "../interfaces/IHasher.sol";
 
-import { IERC20 } from "@openzeppelin/contracts/v4/token/ERC20/IERC20.sol";
 import { AztecTornadoBridge } from "../AztecTornadoBridge.sol";
-
+import { DefiBridgeProxy } from "../aztec/DefiBridgeProxy.sol";
+import { RollupProcessor } from "../aztec/RollupProcessor.sol";
 import { AztecTypes } from "../aztec/AztecTypes.sol";
 
 import "../../lib/ds-test/src/test.sol";
@@ -28,7 +26,8 @@ contract AztecTornadoBridgeTest is DSTest {
     ITornadoProxy tornadoRouter;
 
     IHasher tornadoHasher;
-    IVerifier snarkVerifier;
+    IVerifier tornadoVerifier;
+    IVerifier resolverVerifier;
 
     function _aztecPreSetup() internal {
         defiBridgeProxy = new DefiBridgeProxy();
@@ -38,30 +37,39 @@ contract AztecTornadoBridgeTest is DSTest {
     function _tornadoPreSetup() internal {
         bytes memory empty;
 
-        tornadoHasher = IHasher(deployArtifact("Hasher"), empty);
-        snarkVerifier = IVerifier(deployArtifact("Verifier"), empty);
+        tornadoHasher = IHasher(deployArtifact("Hasher", empty));
+        resolverVerifier = IVerifier(deployArtifact("ResolveVerifier", empty));
+        tornadoVerifier = IVerifier(deployArtifact("WithdrawVerifier", empty));
         tornadoRouter = ITornadoProxy(
           deployArtifact("TornadoProxy",
             abi.encode(
               address(0x0), address(this),
               [
                 ITornadoProxy.Tornado(
-                  deployArtifact(
-                      "ETHTornado",
-                      abi.encode(snarkVerifier, tornadoHasher, 1 ether, 16)
-                  ),
                   ITornadoInstance(
-                    false, address(0x0),
+                    deployArtifact("ETHTornado",
+                      abi.encode(
+                        address(tornadoVerifier), address(tornadoHasher),
+                        1 ether, 16
+                      )
+                    )
+                  ),
+                  ITornadoProxy.Instance(
+                    false, IERC20(address(0x0)),
                     ITornadoProxy.InstanceState.ENABLED
                   )
                 ),
                 ITornadoProxy.Tornado(
-                  deployArtifact(
-                      "ETHTornado",
-                      abi.encode(snarkVerifier, tornadoHasher, 10 ether, 16)
-                  ),
                   ITornadoInstance(
-                    false, address(0x0),
+                    deployArtifact("ETHTornado",
+                      abi.encode(
+                        address(tornadoVerifier), address(tornadoHasher),
+                        10 ether, 16
+                      )
+                    )
+                  ),
+                  ITornadoProxy.Instance(
+                    false, IERC20(address(0x0)),
                     ITornadoProxy.InstanceState.ENABLED
                   )
                 )
@@ -75,10 +83,13 @@ contract AztecTornadoBridgeTest is DSTest {
         _aztecPreSetup();
         _tornadoPreSetup();
 
-        aztecTornadoBridge = new AztecTornadoBridge(address(this), tornadoRouter);
+        aztecTornadoBridge = new AztecTornadoBridge(
+          address(this),
+          address(tornadoRouter)
+        );
     }
 
-    function testAztecTornadoBridge() public {
+    function testAztecTornadoBridge() payable public {
       vm.deal(address(this), 1 ether);
 
       bytes32 noteCommitment = bytes32(12);
