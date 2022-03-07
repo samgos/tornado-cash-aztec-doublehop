@@ -37,17 +37,17 @@ contract AztecTornadoBridgeTest is DSTest {
     function _tornadoPreSetup() internal {
         bytes memory empty;
 
-        tornadoHasher = IHasher(deployArtifact("Hasher", empty));
-        resolverVerifier = IVerifier(deployArtifact("ResolveVerifier", empty));
-        tornadoVerifier = IVerifier(deployArtifact("WithdrawVerifier", empty));
+        resolverVerifier = IVerifier(deployArtifact("ResolveVerifier", "Verifier", empty));
+        tornadoVerifier = IVerifier(deployArtifact("WithdrawVerifier", "Verifier", empty));
+        tornadoHasher = IHasher(deployArtifact("Hasher", "Hasher", empty));
         tornadoRouter = ITornadoProxy(
-          deployArtifact("TornadoProxy",
+          deployArtifact("TornadoProxy", "TornadoProxy",
             abi.encode(
               address(0x0), address(this),
               [
                 ITornadoProxy.Tornado(
                   ITornadoInstance(
-                    deployArtifact("ETHTornado",
+                    deployArtifact("ETHTornado", "ETHTornado",
                       abi.encode(
                         address(tornadoVerifier), address(tornadoHasher),
                         1 ether, 16
@@ -61,7 +61,7 @@ contract AztecTornadoBridgeTest is DSTest {
                 ),
                 ITornadoProxy.Tornado(
                   ITornadoInstance(
-                    deployArtifact("ETHTornado",
+                    deployArtifact("ETHTornado", "ETHTornado",
                       abi.encode(
                         address(tornadoVerifier), address(tornadoHasher),
                         10 ether, 16
@@ -92,7 +92,7 @@ contract AztecTornadoBridgeTest is DSTest {
     function testAztecTornadoBridge() payable public {
       vm.deal(address(this), 1 ether);
 
-      bytes32 noteCommitment = bytes32(12);
+      bytes32 noteCommitment;
       uint64 inputAmount = uint64(1 ether);
       AztecTypes.AztecAsset memory uninitAsset;
       AztecTypes.AztecAsset memory inputAsset = AztecTypes.AztecAsset({
@@ -103,20 +103,23 @@ contract AztecTornadoBridgeTest is DSTest {
 
       uninitAsset.assetType = AztecTypes.AztecAssetType.ETH;
 
-      AztecTornadoBridge.convert.value(1 ether)(
+      aztecTornadoBridge.convert{ value: 1 ether }(
           inputAsset, uninitAsset, uninitAsset, uninitAsset,
-          inputAmount, noteCommitment
+          uint256(noteCommitment), 1, inputAmount
       );
 
       assertEq(address(this).balance, 0, "deposit failure");
     }
 
-    function deployArtifact(string memory contractName, bytes memory args) public returns (address deploymentAddress) {
-      bytes memory bytecode = abi.encodePacked(vm.getCode(contractName + ".sol:MyContract"), args);
-
-      assembly {
-        anotherAddress := create(0, add(bytecode, 0x20), mload(bytecode))
-      }
+    function deployArtifact(
+      string memory fileName,
+      string memory contractName,
+      bytes memory args
+    ) public returns (address deploymentAddress) {
+      deploymentAddress = vm.deployCode(
+          string(abi.encodePacked(fileName, ".sol:", contractName)),
+          args
+      );
     }
 
     function assertNotEq(address a, address b) internal {

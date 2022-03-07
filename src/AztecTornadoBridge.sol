@@ -18,7 +18,7 @@ contract AztecTornadoBridge {
   constructor(
     address rollupContract,
     address tornadoProxy
-  ) public {
+  ) {
     tornadoRouter = ITornadoProxy(tornadoProxy);
     rollupProcessor = rollupContract;
   }
