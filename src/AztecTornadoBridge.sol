@@ -1,26 +1,34 @@
-pragma solidity >=0.8.4 <0.8.11;
+pragma solidity >=0.6.10 <=0.8.10;
+pragma experimental ABIEncoderV2;
 
-import "./interfaces/IDefiBridge.sol";
-import "./interfaces/ITornadoProxy.sol";
+import { IDefiBridge } from "./interfaces/IDefiBridge.sol";
+import { ITornadoProxy } from "./interfaces/ITornadoProxy.sol";
+import { ITornadoInstance } from "./interfaces/ITornadoInstance.sol";
 
-contract AztecTornadoBridge {
+import { AztecTypes } from "./aztec/AztecTypes.sol";
+
+contract AztecTornadoBridge is IDefiBridge {
 
   ITornadoProxy tornadoRouter;
 
   address public immutable rollupProcessor;
 
-  address constant TORNADO_1ETH = 0x47CE0C6eD5B0Ce3d3A51fdb1C52DC66a7c3c2936;
-  address constant TORNADO_10ETH = 0x910Cbd523D972eb0a6f4cAe4618aD62622b39DbF;
-
   uint256 constant MAXIMUM_DEPOSIT = 10 ether;
   uint256 constant MINIMUM_DEPOSIT = 1 ether;
 
+  address TORNADO_1ETH;
+  address TORNADO_10ETH;
+
   constructor(
     address rollupContract,
-    address tornadoProxy
+    address tornadoProxy,
+    address oneEthAnonymitySet,
+    address tenEthAnonymitySet
   ) {
     tornadoRouter = ITornadoProxy(tornadoProxy);
     rollupProcessor = rollupContract;
+    TORNADO_10ETH = tenEthAnonymitySet;
+    TORNADO_1ETH = oneEthAnonymitySet;
   }
 
   function convert(
@@ -36,7 +44,7 @@ contract AztecTornadoBridge {
     uint256 outputValueB,
     bool isAsync
   ) {
-    require(msg.sender == rollupProcessor, "ExampleBridge: INVALID_CALLER");
+    require(msg.sender == rollupProcessor, "AztecTornadoBridge: INVALID_CALLER");
 
     require(
       inputAssetA.assetType == AztecTypes.AztecAssetType.ETH,
@@ -58,28 +66,26 @@ contract AztecTornadoBridge {
       "AztecTornadoBridge: OUTPUT_ASSET_B_ASSIGNED"
     );
 
-    bytes32 commitment = bytes32(inputValue);
-    uint256 decodedInputValue = uint256(auxData);
-
-    require(
-      msg.value == MINIMUM_DEPOSIT || msg.value == MAXIMUM_DEPOSIT,
-      "AztecTornadoBridge: INSUFFICIENT_AMOUNT"
-    );
-
-    require(
-      msg.value == decodedInputValue,
-      "AztecTornadoBridge: AUX_AMOUNT_MISMATCH"
-    );
-
-    address anonymitySet = msg.value == MINIMUM_DEPOSIT ?
+    bytes32 commitment = bytes32(uint256(42));
+    address anonymitySet = inputValue == MINIMUM_DEPOSIT ?
       TORNADO_1ETH : TORNADO_10ETH;
-    bytes memory empty;
 
-    tornadoRouter.deposit(
-      ITornadoInstance(anonymitySet), commitment, empty
+    tornadoRouter.deposit{ value: inputValue }(
+      ITornadoInstance(anonymitySet), commitment, bytes("")
     );
 
-    return(0, 0, false);
+    return(inputValue, 0, false);
+  }
+
+  function finalise(
+    AztecTypes.AztecAsset calldata inputAssetA,
+    AztecTypes.AztecAsset calldata inputAssetB,
+    AztecTypes.AztecAsset calldata outputAssetA,
+    AztecTypes.AztecAsset calldata outputAssetB,
+    uint256 interactionNonce,
+    uint64 auxData
+  ) external payable override returns (uint256, uint256, bool) {
+    require(false);
   }
 
 }

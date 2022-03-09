@@ -1,4 +1,4 @@
-pragma solidity >=0.8.4 <0.8.11;
+pragma solidity >=0.6.10 <=0.8.10;
 
 import "./interfaces/IRollupProcessor.sol";
 import "./interfaces/ITornadoProxy.sol";

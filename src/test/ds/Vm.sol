@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Unlicense
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.10;
 
 interface Vm {
     // Set block.timestamp (newTimestamp)
@@ -30,6 +30,4 @@ interface Vm {
     function expectRevert(bytes calldata) external;
 
     function getCode(string calldata) external returns (bytes memory);
-
-    function deployCode(string memory what, bytes memory args) external returns (address addr);
 }

@@ -12,6 +12,7 @@ const execute = util.promisify(exec)
 async function buildCircuits() {
   const directory = await fs.promises.opendir(inputPath)
 
+  await execute("mkdir artifacts")
   await execute(`mkdir ${outputPath}`)
 
   for await(const circuit of directory) {

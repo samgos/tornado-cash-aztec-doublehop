@@ -1,5 +1,5 @@
-include "./merkleTree.circom";
 include "./commitmentHasher.circom";
+include "./merkleTree.circom";
 
 // Verifies that commitment that corresponds to given secret and nullifier is included in the merkle tree of deposits
 template Withdraw(levels) {
@@ -40,4 +40,4 @@ template Withdraw(levels) {
     refundSquare <== refund * refund;
 }
 
-component main = Withdraw(20);
+component main = Withdraw(16);
