@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.10;
 
-import { Vm } from "./ds/Vm.sol";
+import { Vm } from "./Vm.sol";
 
 import { AztecTornadoBridge } from "../AztecTornadoBridge.sol";
 import { DefiBridgeProxy } from "../aztec/DefiBridgeProxy.sol";
@@ -14,7 +14,7 @@ import { ITornadoProxy } from "../interfaces/ITornadoProxy.sol";
 import { IVerifier } from "../interfaces/IVerifier.sol";
 import { IHasher } from "../interfaces/IHasher.sol";
 
-import "../../lib/ds-test/src/test.sol";
+import  "ds-test/test.sol";
 
 contract AztecTornadoBridgeTest is DSTest {
 
