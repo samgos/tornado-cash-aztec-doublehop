@@ -9,7 +9,7 @@ import {IERC20} from "../interfaces/IERC20Permit.sol";
 import {DefiBridgeProxy} from "./DefiBridgeProxy.sol";
 import {AztecTypes} from "./AztecTypes.sol";
 
-import "../../lib/ds-test/src/test.sol";
+import "ds-test/test.sol";
 
 contract RollupProcessor is DSTest {
     DefiBridgeProxy private bridgeProxy;

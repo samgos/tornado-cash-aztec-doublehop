@@ -9,7 +9,7 @@ import {AztecTypes} from "./AztecTypes.sol";
 
 import {TokenTransfers} from "../libraries/TokenTransfers.sol";
 
-import "../../lib/ds-test/src/test.sol";
+import "ds-test/test.sol";
 
 contract DefiBridgeProxy is DSTest {
     bytes4 private constant BALANCE_OF_SELECTOR = 0x70a08231; // bytes4(keccak256('balanceOf(address)'));

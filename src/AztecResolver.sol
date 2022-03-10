@@ -31,8 +31,7 @@ contract AztecResolver {
   }
 
   function withdraw(
-    bytes calldata withdrawalProof,
-    bytes calldata resolverProof,
+    bytes[2] calldata proofs,
     bytes32 settlementProofHash,
     bytes32 root,
     bytes32 nullifierHash,
@@ -47,12 +46,12 @@ contract AztecResolver {
     require(!ITornadoInstance(instance).isSpent(nullifierHash));
     require(
       snarkVerifier.verifyProof(
-        resolverProof, [ uint256(nullifierHash), uint256(uint160(payee)) ]
+        proofs[1], [ uint256(nullifierHash), uint256(uint160(payee)) ]
       ), "Invalid resolver proof"
     );
 
     ITornadoInstance(instance).withdraw(
-      withdrawalProof, root, nullifierHash, recipient, relayer, fee, refund
+      proofs[0], root, nullifierHash, recipient, relayer, fee, refund
     );
 
     require(ITornadoInstance(instance).isSpent(nullifierHash));
