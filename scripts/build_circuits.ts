@@ -21,12 +21,12 @@ async function buildCircuits() {
     const motherboard = fs.readFileSync(target).toString()
     const shouldCompile = motherboard.includes("component main")
 
+    console.log(shouldCompile)
+
     if(shouldCompile) {
       await execute(
-        `circom -v -f -r ${outputPath + name}.r1cs `
-        + `-w ${outputPath + name}.wasm `
-        + `-s ${outputPath + name}.sym `
-        + `${inputPath + circuit.name}`
+        `circom -v -f ${inputPath + circuit.name} `
+        + `-o ${outputPath + name}.json `
       )
     }
   }

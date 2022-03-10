@@ -14,10 +14,10 @@ async function buildVerifier() {
   await execute(`mkdir ${outputPath}`)
 
   for await(const circuit of directory) {
-    const name = circuit.name.replace(".r1cs", "")
+    const name = circuit.name.replace(".json", "")
     const format = name.replace(/^\w/, (c) => c.toUpperCase())
 
-    if(circuit.name.includes(".r1cs")) {
+    if(circuit.name.includes(".json")) {
       await execute(`zkutil setup --circuit ${inputPath + circuit.name}`)
       await execute(`zkutil generate-verifier && mv Verifier.sol src/${format}Verifier.sol`)
       await execute(`zkutil export-keys --circuit ${inputPath + circuit.name}`)

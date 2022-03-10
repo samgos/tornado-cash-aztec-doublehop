@@ -2,14 +2,11 @@ pragma solidity >=0.6.10 <=0.8.10;
 pragma experimental ABIEncoderV2;
 
 import { IDefiBridge } from "./interfaces/IDefiBridge.sol";
-import { ITornadoProxy } from "./interfaces/ITornadoProxy.sol";
 import { ITornadoInstance } from "./interfaces/ITornadoInstance.sol";
 
 import { AztecTypes } from "./aztec/AztecTypes.sol";
 
 contract AztecTornadoBridge is IDefiBridge {
-
-  ITornadoProxy tornadoRouter;
 
   address public immutable rollupProcessor;
 
@@ -21,11 +18,9 @@ contract AztecTornadoBridge is IDefiBridge {
 
   constructor(
     address rollupContract,
-    address tornadoProxy,
     address oneEthAnonymitySet,
     address tenEthAnonymitySet
   ) {
-    tornadoRouter = ITornadoProxy(tornadoProxy);
     rollupProcessor = rollupContract;
     TORNADO_10ETH = tenEthAnonymitySet;
     TORNADO_1ETH = oneEthAnonymitySet;
@@ -70,9 +65,9 @@ contract AztecTornadoBridge is IDefiBridge {
     address anonymitySet = inputValue == MINIMUM_DEPOSIT ?
       TORNADO_1ETH : TORNADO_10ETH;
 
-    tornadoRouter.deposit{ value: inputValue }(
-      ITornadoInstance(anonymitySet), commitment, bytes("")
-    );
+    ITornadoInstance(anonymitySet).deposit{
+      value: inputValue
+    }( commitment );
 
     return(inputValue, 0, false);
   }

@@ -1,13 +1,12 @@
 pragma solidity >=0.6.10 <=0.8.10;
 
 import "./interfaces/IRollupProcessor.sol";
-import "./interfaces/ITornadoProxy.sol";
+import "./interfaces/ITornadoInstance.sol";
 import "./interfaces/IVerifier.sol";
 
 contract AztecResolver {
 
   IRollupProcessor aztecProcessor;
-  ITornadoProxy tornadoRouter;
   IVerifier snarkVerifier;
 
   address public immutable operator;
@@ -15,11 +14,9 @@ contract AztecResolver {
   constructor(
     address rollupProcessor,
     address governanceOperator,
-    address proofVerifier,
-    address tornadoProxy
+    address proofVerifier
   ) {
     aztecProcessor = IRollupProcessor(rollupProcessor);
-    tornadoRouter = ITornadoProxy(tornadoProxy);
     snarkVerifier = IVerifier(proofVerifier);
     operator = governanceOperator;
   }

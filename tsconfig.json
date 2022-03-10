@@ -6,7 +6,7 @@
     "outDir": "dest",
     "module": "commonjs",
     "strict": true,
-    "noImplicitAny": true,
+    "noImplicitAny": false,
     "noImplicitThis": false,
     "esModuleInterop": true,
     "declaration": true,
@@ -16,6 +16,8 @@
     "declarationMap": true,
     "resolveJsonModule": true
   },
-  "include": ["client", "typechain-types"],
-  "files": ["hardhat.config.ts"]
+  "include": [
+    "scripts/*",
+    "types.d.ts"
+  ],
 }
