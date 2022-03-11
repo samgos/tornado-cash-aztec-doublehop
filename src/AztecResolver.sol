@@ -9,22 +9,12 @@ contract AztecResolver {
   IRollupProcessor aztecProcessor;
   IVerifier snarkVerifier;
 
-  address public immutable operator;
-
   constructor(
     address rollupProcessor,
-    address governanceOperator,
     address proofVerifier
   ) {
     aztecProcessor = IRollupProcessor(rollupProcessor);
     snarkVerifier = IVerifier(proofVerifier);
-    operator = governanceOperator;
-  }
-
-  function configureProcessor(address rollupProcessor) public {
-    require(msg.sender == operator);
-
-    aztecProcessor = IRollupProcessor(rollupProcessor);
   }
 
   function withdraw(
@@ -54,7 +44,7 @@ contract AztecResolver {
     require(ITornadoInstance(instance).isSpent(nullifierHash));
 
     aztecProcessor.depositPendingFunds{ value: address(this).balance }(
-      0, address(this).balance, payee, settlementProofHash
+      1, address(this).balance, payee, settlementProofHash
     );
   }
 

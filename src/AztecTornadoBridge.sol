@@ -61,13 +61,12 @@ contract AztecTornadoBridge is IDefiBridge {
       "AztecTornadoBridge: OUTPUT_ASSET_B_ASSIGNED"
     );
 
-    bytes32 commitment = bytes32(uint256(42));
     address anonymitySet = inputValue == MINIMUM_DEPOSIT ?
       TORNADO_1ETH : TORNADO_10ETH;
 
     ITornadoInstance(anonymitySet).deposit{
       value: inputValue
-    }( commitment );
+    }( bytes32(inputAssetA.id) );
 
     return(inputValue, 0, false);
   }

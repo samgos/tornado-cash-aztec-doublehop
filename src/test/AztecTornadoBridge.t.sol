@@ -3,10 +3,12 @@ pragma solidity ^0.8.10;
 
 import { Vm } from "./Vm.sol";
 
-import { AztecTornadoBridge } from "../AztecTornadoBridge.sol";
 import { DefiBridgeProxy } from "../aztec/DefiBridgeProxy.sol";
 import { RollupProcessor } from "../aztec/RollupProcessor.sol";
 import { AztecTypes } from "../aztec/AztecTypes.sol";
+
+import { AztecTornadoBridge } from "../AztecTornadoBridge.sol";
+import { AztecResolveer } from "../AztecResolveer.sol";
 
 import { IERC20 } from "@openzeppelin/contracts/v4/token/ERC20/IERC20.sol";
 import { ITornadoInstance } from "../interfaces/ITornadoInstance.sol";
@@ -19,14 +21,93 @@ contract AztecTornadoBridgeTest is DSTest {
 
     Vm vm = Vm(0x7109709ECfa91a80626fF3989D68f67F5b1DD12D);
 
+    address constant oneHundredEthAnonymitySet =;
+    address constant tenEthAnonymitySet = ;
+    address constant oneEthAnonymitySet = ;
+    address constant resolverAddress =;
+    address constant relayerAddress =;
+
+    uint256 constant relayerFee = 1000 wei;
+    uint256 constant relayerRefund  = 0;
+
+    /// [0] = 100 ETH
+    /// [1] = 10 ETH
+    /// [2] = 1 ETH
+    /// [3] = resolver
+
+    uint256[3] deploymentSalts = [
+      uint256(0x99),
+      uint256(0x66),
+      uint256(0x33)
+      uint256(1)
+    ]
+
+    address[3] deploymentAddresses = [
+      ,
+      ,
+      ,
+    ]
+
+    struct Doublehop {
+      bytes32 resolverNullifierHash;
+      bytes32 withdrawalNulliferHash;
+      bytes32 withdrawalRoot;
+      bytes32 resolverRoot;
+      /// [0] = withdrawal
+      /// [1] = resolver
+      /// [2] = settlement
+      /// [3] = withdrawal
+      bytes memory proofs[];
+    }
+
     DefiBridgeProxy defiBridgeProxy;
     RollupProcessor rollupProcessor;
 
     AztecTornadoBridge aztecTornadoBridge;
+    AztecResolver aztecResolver;
 
     IHasher tornadoHasher;
     IVerifier tornadoVerifier;
     IVerifier resolverVerifier;
+
+    Doublehop oneHundredEthHop = Doublehop({
+      withdrawalNulliferHash: "",
+      resolverNullifierHash: "",
+      resolverRoot: "",
+      withdrawalRoot: "",
+      proofs: [
+        "",
+        "",
+        "",
+        ''
+      ]
+    });
+
+    Doublehop tenEthHop = Doublehop({
+      withdrawalNulliferHash: "",
+      resolverNullifierHash: "",
+      resolverRoot: "",
+      withdrawalRoot: "",
+      proofs: [
+        "",
+        "",
+        "",
+        ''
+      ]
+    });
+
+    Doublehop oneEthHop = Doublehop({
+      withdrawalNulliferHash: "",
+      resolverNullifierHash: "",
+      resolverRoot: "",
+      withdrawalRoot: "",
+      proofs: [
+        "",
+        "",
+        "",
+        ''
+      ]
+    });
 
     function _aztecPreSetup() internal {
       defiBridgeProxy = new DefiBridgeProxy();
@@ -38,25 +119,50 @@ contract AztecTornadoBridgeTest is DSTest {
       tornadoVerifier = IVerifier(deployArtifact("WithdrawVerifier", "Verifier"));
       tornadoHasher = IHasher(deployPreCompiledArtifact("./Hasher.json"));
 
-      address oneEthAnonymitySet = deployArtifact("ETHTornado", "ETHTornado",
+      address oneHundredEthPool = deployArtifactAt("ETHTornado", "ETHTornado",
+        oneEthAnonymitySet,
         abi.encode(
           address(tornadoVerifier), address(tornadoHasher),
-          1 ether, 16
-        )
+          100 ether, 16
+        ), deploymentSalts[0]
       );
-      address tenEthAnonymitySet = deployArtifact("ETHTornado", "ETHTornado",
+      address tenEthPool = deployArtifactAt("ETHTornado", "ETHTornado",
+        tenEthAnonymitySet,
         abi.encode(
           address(tornadoVerifier), address(tornadoHasher),
           10 ether, 16
-        )
+        ), deploymentSalts[1]
+      );
+      address oneEthPool = deployArtifactAt("ETHTornado", "ETHTornado",
+        oneEthAnonymitySet,
+        abi.encode(
+          address(tornadoVerifier), address(tornadoHasher),
+          10 ether, 16
+        ), deploymentSalts[2]
+      );
+      address resolver = deployArtifactAt("AztecResolver", "AztecResolver"
+        resolverAddress,
+        abi.encode(
+          address(rollupProcessor), address(resolverVerifier)
+        ), deploymentSalts[3]
       );
 
-      return [ oneEthAnonymitySet, tenEthAnonymitySet ];
+      return [
+        oneHundredEthPool, tenEthPool, oneEthPool, resolver
+      ];
     }
 
     function setUp() public {
       _aztecPreSetup();
-      address[2] memory instances = _tornadoPreSetup();
+      address[3] memory deployments = _tornadoPreSetup();
+
+      require(
+        deployments[0] === oneHundredEthAnonymitySet
+        && deployment[1] === tenEthAnonymitySet
+        && deployment[2] == oneEthAnonymitySet
+        && deployment[3] == resolverAddress,
+        "Create2 deployments to not match preassigned addresses"
+      );
 
       aztecTornadoBridge = new AztecTornadoBridge(
         address(rollupProcessor),
@@ -70,16 +176,17 @@ contract AztecTornadoBridgeTest is DSTest {
 
       uint64 interactionNonce = 1;
       uint256 inputAmount = 1 ether;
+      uint256 noteCommitment = uint256(42);
       AztecTypes.AztecAsset memory uninitAsset;
       AztecTypes.AztecAsset memory inputAsset = AztecTypes.AztecAsset({
-          id: 0,
+          id: noteCommitment,
           erc20Address: address(0x0),
           assetType: AztecTypes.AztecAssetType.ETH
       });
 
       uninitAsset.assetType = AztecTypes.AztecAssetType.NOT_USED;
 
-      rollupProcessor.receiveEthFromBridge{ value: 1 ether }(interactionNonce);
+      rollupProcessor.receiveEthFromBridge{ value: 1 ether }( interactionNonce );
       rollupProcessor.convert(
           address(aztecTornadoBridge), inputAsset,
           uninitAsset, uninitAsset, uninitAsset,
@@ -108,6 +215,37 @@ contract AztecTornadoBridgeTest is DSTest {
       return deployBytecode(bytecode);
     }
 
+    function deployArtifactAt(
+      string memory fileName,
+      string memroy contractName,
+      address targetAddress,
+      uint256 salt
+    ) public returns (deploymentAddress) {
+      string memory target = string(abi.encodePacked(fileName, ".sol:", contractName));
+      bytes memory bytecode = abi.encodePacked(
+          abi.encodePacked(bytes(vm.getCode(target))),
+          uint256(uint160(address(targetAddress)))
+      );
+
+      return deployCreateTwo(bytecode, salt);
+    }
+
+    function deployArtifactAt(
+      string memory fileName,
+      string memroy contractName,
+      address targetAddress,
+      bytes memory args,
+      uint256 salt
+    ) public returns (address deploymentAddress) {
+      string memory target = string(abi.encodePacked(fileName, ".sol:", contractName));
+      bytes memory bytecode = abi.encodePacked(
+          abi.encodePacked(bytes(vm.getCode(target)), args),
+          uint256(uint160(address(targetAddress)))
+      );
+
+      return deployCreateTwo(bytecode, salt);
+    }
+
     function deployPreCompiledArtifact(
       string memory filePath
     ) public returns (address) {
@@ -116,10 +254,15 @@ contract AztecTornadoBridgeTest is DSTest {
       return deployBytecode(bytecode);
     }
 
-
     function deployBytecode(bytes memory bytecode) public returns (address deploymentAddress) {
       assembly {
         deploymentAddress := create(0, add(bytecode, 0x20), mload(bytecode))
+      }
+    }
+
+    function deployCreateTwo(bytes memory bytecode, uint256 salt) public returns (address deploymentAddress) {
+      assembly {
+        deploymentAddress := create2(0, add(bytecode, 0x20), mload(bytecode), salt)
       }
     }
 
