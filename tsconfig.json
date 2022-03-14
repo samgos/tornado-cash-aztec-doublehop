@@ -3,10 +3,9 @@
     "target": "esnext",
     "moduleResolution": "node",
     "lib": ["dom", "esnext", "es2017.object", "DOM.Iterable"],
-    "outDir": "dest",
     "module": "commonjs",
     "strict": true,
-    "noImplicitAny": false,
+    "noImplicitAny": true,
     "noImplicitThis": false,
     "esModuleInterop": true,
     "declaration": true,
@@ -16,8 +15,8 @@
     "declarationMap": true,
     "resolveJsonModule": true
   },
-  "include": [
-    "scripts/*",
+  "files": [
+    "scripts/*.ts",
     "types.d.ts"
-  ],
+  ]
 }

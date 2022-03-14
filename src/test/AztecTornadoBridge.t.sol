@@ -36,10 +36,10 @@ contract AztecTornadoBridgeTest is DSTest {
     /// [3] = resolver
 
     uint256[3] deploymentSalts = [
-      uint256(0x99),
-      uint256(0x66),
-      uint256(0x33)
-      uint256(1)
+      uint256(0x999),
+      uint256(0x666),
+      uint256(0x333)
+      uint256(0x111)
     ]
 
     address[3] deploymentAddresses = [

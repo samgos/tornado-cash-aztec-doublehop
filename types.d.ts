@@ -1,2 +1,10 @@
-declare module 'circomlib/src/mimcsponge_gencontract.js';
-declare module 'snarkjs';
+declare module "circomlib/src/mimcsponge_gencontract.js"
+declare module "snarkjs/src/stringifybigint"
+declare module "websnark/tools/stringifybigint"
+declare module "websnark/src/groth16"
+declare module "websnark/src/utils"
+declare module "fixed-merkle-tree"
+declare module "snarkjs"
+declare module "ethers"
+declare module "websnark"
+declare module "circomlib"

@@ -5,7 +5,7 @@ import util from "util"
 import path from "path"
 
 const inputPath = path.join(__dirname, "..", "artifacts/circuits/")
-const outputPath = path.join(__dirname, "..", "src/zkeys/")
+const outputPath = path.join(__dirname, "..", "artifacts/zkeys/")
 const execute = util.promisify(exec)
 
 async function buildVerifier() {

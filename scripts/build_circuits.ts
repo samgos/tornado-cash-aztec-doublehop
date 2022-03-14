@@ -21,8 +21,6 @@ async function buildCircuits() {
     const motherboard = fs.readFileSync(target).toString()
     const shouldCompile = motherboard.includes("component main")
 
-    console.log(shouldCompile)
-
     if(shouldCompile) {
       await execute(
         `circom -v -f ${inputPath + circuit.name} `
