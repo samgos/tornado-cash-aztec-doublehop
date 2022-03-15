@@ -21,10 +21,6 @@ contract AztecTornadoBridgeTest is DSTest {
 
     Vm vm = Vm(0x7109709ECfa91a80626fF3989D68f67F5b1DD12D);
 
-    address constant oneHundredEthAnonymitySet =;
-    address constant tenEthAnonymitySet = ;
-    address constant oneEthAnonymitySet = ;
-    address constant resolverAddress =;
     address constant relayerAddress =;
 
     uint256 constant relayerFee = 1000 wei;
@@ -46,6 +42,7 @@ contract AztecTornadoBridgeTest is DSTest {
       ,
       ,
       ,
+      
     ]
 
     struct Doublehop {
@@ -157,10 +154,10 @@ contract AztecTornadoBridgeTest is DSTest {
       address[3] memory deployments = _tornadoPreSetup();
 
       require(
-        deployments[0] === oneHundredEthAnonymitySet
-        && deployment[1] === tenEthAnonymitySet
-        && deployment[2] == oneEthAnonymitySet
-        && deployment[3] == resolverAddress,
+        deployments[0] === deploymentAddresses[0]
+        && deployment[1] === deploymentAddresses[1]
+        && deployment[2] == deploymentAddresses[2]
+        && deployment[3] == deploymentAddresses[3],
         "Create2 deployments to not match preassigned addresses"
       );
 

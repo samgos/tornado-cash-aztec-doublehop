@@ -4,7 +4,7 @@ import rlp from "rlp"
 
 import websnarkUtils from "websnark/src/utils"
 import buildGroth16 from "websnark/src/groth16"
-import merkleTree from "fixed-merkle-tree"
+import MerkleTree from "fixed-merkle-tree"
 
 import { ethers } from "ethers"
 import { bigInt } from "snarkjs"
@@ -63,13 +63,16 @@ function generateFactoryAddress(
 function generateCommitment() {
   const nullifier = rbigInt(31)
   const secret = rbigInt(31)
-  const commitment = perdersen(
-    Buffer.concat([
+  const buffer = Buffer.concat([
       nullifier.leInt2Buff(31),
       secret.leInt2Buff(31)
-  ]))
+  ])
+
   const nullifierHash = perdersen(
     nullifier.leInt2Buff(31)
+  )
+  const commitment = perdersen(
+    buffer
   )
 
   return {
@@ -103,7 +106,7 @@ async function generateProof(
       relayer: input.relayer,
       root: input.root,
       refund: bigInt(0),
-      fee: bigInt(0),
+      fee: bigInt(1e17),
       nullifierHash,
       recipient,
       nullifier,
@@ -129,8 +132,8 @@ async function generateProofsAndAddresses() {
   const groth16 = await buildGroth16()
   const factoryAddress = generateFactoryAddress(deploymentAddress, 0)
 
-  const contractArtifacts = new Array(2).fill(tornadoArtifact)
-  const contractTrees = new Array(2).fill(new merkleTree(16))
+  const contractArtifacts = new Array(3).fill(tornadoArtifact)
+  const contractTrees = new Array(3).fill(new MerkleTree(16))
   const contractParameters = []
   const contractAddresses = []
 
@@ -155,15 +158,19 @@ async function generateProofsAndAddresses() {
     contractTrees[x]
     .insert(contractParameters[x].hop.commitment)
 
+    const treeLength = contractTrees[x].elements().length
+    const resolverRoot = contractTrees[x].root()
+
     contractParameters[x] = {
+      resolverRoot,
       ...contractParameters[x],
       proofs: [
         await generateProof(
           withdrawCircuit,
           {
-            ...contractTrees[x].path(0),
+            ...contractTrees[x].path(treeLength - 1),
             ...contractParameters[x].hop,
-            root: contractTrees[x].root(),
+            root: resolverRoot,
             relayer: defaultRelayer,
             recipient: resolverAddress
           },
@@ -179,29 +186,93 @@ async function generateProofsAndAddresses() {
           resolverProvingKey,
           groth16
         ),
-        // TODO: Aztec settlement proof
+        "0x0", // TODO: Aztec settlement proof,
+        "0x0" // withdrawal proof
       ]
     }
 
-    // contractTrees[x]
-    // .insert(contractParameters[x].withdrawal.commitment)
+    contractTrees[x]
+    .insert(contractParameters[x].withdrawal.commitment)
+    const withdrawalRoot = contractTrees[x].root()
 
-    // contractParameters[x].proofs[3] = await generateProof(
-    //  withdrawCircuit,
-    //  {
-    //    ...contractTrees[x].path(0),
-    //    ...contractParameters[x].withdrawal,
-    //    root: contractTrees[x].root(),
-    //    relayer: defaultRelayer,
-    //    recipient: destinationAddress
-    //  },
-    //  withdrawProvingKey,
-    //  groth16
-    // )
+    contractParameters[x] = {
+      withdrawalRoot,
+      ...contractParameters[x]
+    }
+
+    contractParameters[x].proofs[3] = await generateProof(
+      withdrawCircuit,
+      {
+        ...contractTrees[x].path(treeLength),
+        ...contractParameters[x].withdrawal,
+        root: withdrawalRoot,
+        relayer: defaultRelayer,
+        recipient: destinationAddress
+      },
+      withdrawProvingKey,
+      groth16
+    )
   }
 
-  console.log(contractParameters)
-
+  return [
+    contractAddresses, contractParameters
+  ]
 }
 
-generateProofsAndAddresses()
+async function formatContractParameters(
+  addresses: any, parameters: any
+) {
+  const targetPath = "./src/test/AztecTornadoBridge.t.sol"
+  const solFileContents = fs.readFileSync(targetPath, "utf8")
+  const splitContent = solFileContents.split('\n')
+
+  splitContent[41] = " " + splitContent[41].slice(
+    0, splitContent[41].length - 2
+  ) + `${addresses[0]},`
+  splitContent[42] = " " + splitContent[42].slice(
+    0, splitContent[42].length - 2
+  ) + `${addresses[1]},`
+  splitContent[43] = " " + splitContent[43].slice(
+    0, splitContent[43].length - 2
+  ) + `${addresses[2]},`
+  splitContent[44] = " " + splitContent[44].slice(
+    0, splitContent[44].length - 2
+  ) + `${addresses[3]}`
+
+  splitContent[70] = " " + splitContent[70].slice(
+    0, splitContent[70].length - 2
+  ) + `${parameters[0].hop.nullifierHash}",`
+  splitContent[71] = " " + splitContent[71].slice(
+    0, splitContent[71].length - 2
+  ) + `${parameters[0].withdrawal.nullifierHash}",`
+  splitContent[72] = " " + splitContent[72].slice(
+    0, splitContent[72].length - 2
+  ) + `${parameters[0].resolverRoot}",`
+  splitContent[73] = " " + splitContent[73].slice(
+    0, splitContent[73].length - 2
+  ) + `${parameters[0].withdrawalRoot}",`
+  splitContent[75] = " " + splitContent[75].slice(
+    0, splitContent[75].length - 2
+  ) + `${parameters[0].proofs[0]}",`
+  splitContent[76] = " " + splitContent[76].slice(
+    0, splitContent[76].length - 2
+  ) + `${parameters[0].proofs[1]}",`
+  splitContent[76] = " " + splitContent[76].slice(
+    0, splitContent[76].length - 2
+  ) + `${parameters[0].proofs[2]}",`
+  splitContent[77] = " " + splitContent[77].slice(
+    0, splitContent[77].length - 2
+  ) + `${parameters[0].proofs[3]}",`
+
+  fs.writeFileSync(targetPath, splitContent.join('\n'))
+
+  console.log('Contract formatted!')
+}
+
+async function encodeParametersToContract(){
+  const [ addresses, params ] = await generateProofsAndAddresses()
+
+  formatContractParameters(addresses, params)
+}
+
+encodeParametersToContract()
