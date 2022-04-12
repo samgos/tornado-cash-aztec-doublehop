@@ -51,7 +51,7 @@ interface IDefiBridge {
     AztecTypes.AztecAsset calldata outputAssetB,
     uint256 inputValue,
     uint256 interactionNonce,
-    uint64 auxData
+    uint256 auxData
   )
     external
     payable

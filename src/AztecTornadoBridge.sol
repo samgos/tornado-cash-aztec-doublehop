@@ -15,15 +15,18 @@ contract AztecTornadoBridge is IDefiBridge {
 
   address TORNADO_1ETH;
   address TORNADO_10ETH;
+  address TORNADO_100ETH;
 
   constructor(
-    address rollupContract,
+    address oneHundredEthAnonymitySet,
     address oneEthAnonymitySet,
-    address tenEthAnonymitySet
+    address tenEthAnonymitySet,
+    address rollupContract
   ) {
-    rollupProcessor = rollupContract;
+    TORNADO_100ETH = oneHundredEthAnonymitySet;
     TORNADO_10ETH = tenEthAnonymitySet;
     TORNADO_1ETH = oneEthAnonymitySet;
+    rollupProcessor = rollupContract;
   }
 
   function convert(
@@ -33,7 +36,7 @@ contract AztecTornadoBridge is IDefiBridge {
     AztecTypes.AztecAsset calldata outputAssetB,
     uint256 inputValue,
     uint256 interactionNonce,
-    uint64 auxData
+    uint256 auxData
   ) payable public override returns (
     uint256 outputValueA,
     uint256 outputValueB,
@@ -61,12 +64,9 @@ contract AztecTornadoBridge is IDefiBridge {
       "AztecTornadoBridge: OUTPUT_ASSET_B_ASSIGNED"
     );
 
-    address anonymitySet = inputValue == MINIMUM_DEPOSIT ?
-      TORNADO_1ETH : TORNADO_10ETH;
-
-    ITornadoInstance(anonymitySet).deposit{
-      value: inputValue
-    }( bytes32(inputAssetA.id) );
+    ITornadoInstance(TORNADO_1ETH).deposit{
+      value: 1 ether
+    }( bytes32(auxData) );
 
     return(inputValue, 0, false);
   }

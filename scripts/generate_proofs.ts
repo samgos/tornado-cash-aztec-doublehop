@@ -1,6 +1,7 @@
 import fs from "fs"
 import path from "path"
 import rlp from "rlp"
+import web3 from "web3"
 
 import websnarkUtils from "websnark/src/utils"
 import buildGroth16 from "websnark/src/groth16"
@@ -13,7 +14,9 @@ import { createHash, randomBytes } from "crypto"
 import { stringifyBigInts } from "websnark/tools/stringifybigint"
 
 const resolverArtifact = require( "../out/AztecResolver.sol/AztecResolver.json")
+const verifierArtifact = require("../out/WithdrawVerifier.sol/Verifier.json")
 const tornadoArtifact = require("../out/ETHTornado.sol/ETHTornado.json")
+const hasherArtifact = require("../Hasher.json")
 
 const resolverCircuit = require("../artifacts/circuits/resolve.json")
 const withdrawCircuit = require("../artifacts/circuits/withdraw.json")
@@ -21,59 +24,57 @@ const withdrawCircuit = require("../artifacts/circuits/withdraw.json")
 const withdrawProvingKey = "./artifacts/zkeys/withdraw_proving_key.bin"
 const resolverProvingKey = "./artifacts/zkeys/resolve_proving_key.bin"
 
-const deploymentAddress = "0x627306090abaB3A6e1400e9345bC60c78a8BEf57"
+const resolverVerifierAddress = "0x22029e89e1d1f79d8e57c9af2fb9bf653bdf4be1"
+const deploymentAddress = "0xf12b5dd4ead5f743c6baa640b0216200e89b60da"
+const rollupAddress = "0x0ebe109b4ac5de65d63f7d7e5a856dcd77dc58fd"
+
 const defaultRelayer = "0x627306090abaB3A6e1400e9345bC60c78a8BEf57"
 const destinationAddress = "0x000000000000000000000000000000000000"
 const deploymentSalts = [
-  "0x999", "0x666", "0x333", "0x111"
-]
+  999999,
+  666666,
+  333333,
+  101010,
+  111000,
+  100000
+];
 
 const rbigInt = (n: number) => bigInt.leBuff2int(randomBytes(n))
 const perdersen = (e: Buffer) => babyJub.unpackPoint(pedersenHash.hash(e))[0]
+const toFixedHex = (number:any, length = 32) =>
+  '0x' +
+  bigInt(number)
+    .toString(16)
+    .padStart(length * 2, '0')
 
-function generateCreate2Address(
-  issuingAddress: string,
-  salt: string,
-  bytecode: string
-): string {
-  return `0x${createHash("sha3-256")
-    .update(
-      `0x${[
-          "ff",
-          issuingAddress,
-          salt,
-          ethers.utils.keccak256(bytecode)
-        ].map((x) => x.replace(/0x/, ""))
-     .join("")}`
-    )
-    .digest('hex').slice(-40)}`
-    .toLowerCase()
+const encodeParam = (dataType: any, data: any) => {
+  const abiCoder = ethers.utils.defaultAbiCoder
+  return abiCoder.encode(dataType, data)
 }
 
-function generateFactoryAddress(
-  issuingAddress: string,
-  nonce: number
+function generateCreate2Address(
+  salt: number,
+  bytecode: string,
+  types: Array<string> = [],
+  args: Array<string> = []
 ): string {
-  const rlpCipher = rlp.encode([ issuingAddress, nonce ])
-  const rawAddress = ethers.utils.keccak256(rlpCipher)
-
-  return `0x${rawAddress.slice(-40).toLowerCase()}`
+  return ethers.utils.getCreate2Address(
+    deploymentAddress,
+    toFixedHex(salt),
+    ethers.utils.keccak256(
+      args.length == 0 ? bytecode :
+      `${bytecode}${encodeParam(types, args).slice(2)}`
+    )
+  )
 }
 
 function generateCommitment() {
-  const nullifier = rbigInt(31)
-  const secret = rbigInt(31)
+  const [ nullifier, secret ]  = [ rbigInt(31), rbigInt(31) ]
   const buffer = Buffer.concat([
-      nullifier.leInt2Buff(31),
-      secret.leInt2Buff(31)
+      nullifier.leInt2Buff(31), secret.leInt2Buff(31)
   ])
-
-  const nullifierHash = perdersen(
-    nullifier.leInt2Buff(31)
-  )
-  const commitment = perdersen(
-    buffer
-  )
+  const nullifierHash = perdersen(nullifier.leInt2Buff(31))
+  const commitment = perdersen(buffer)
 
   return {
     nullifierHash,
@@ -93,9 +94,6 @@ async function generateProof(
     nullifierHash, secret, nullifier, recipient
   } = input
   proving_key = fs.readFileSync(proving_key).buffer
-
-  const fee = "0x000"
-  const refund = fee
 
   let formattedInputs
 
@@ -125,29 +123,46 @@ async function generateProof(
     groth, formattedInputs, circuit, proving_key
   )
 
-  return websnarkUtils.toSolidityInput(e).proof
+  return toFixedHex(websnarkUtils.toSolidityInput(e).proof)
 }
 
 async function generateProofsAndAddresses() {
   const groth16 = await buildGroth16()
-  const factoryAddress = generateFactoryAddress(deploymentAddress, 0)
-
   const contractArtifacts = new Array(3).fill(tornadoArtifact)
+  const contractDenominations = [ "100.00", "10.00", "1.00" ]
   const contractTrees = new Array(3).fill(new MerkleTree(16))
   const contractParameters = []
   const contractAddresses = []
 
+  const tornadoVerifierAddress = generateCreate2Address(
+      deploymentSalts[4],
+      verifierArtifact.bytecode.object
+  )
   const resolverAddress = generateCreate2Address(
-      factoryAddress,
       deploymentSalts[3],
-      resolverArtifact.bytecode.object
+      resolverArtifact.bytecode.object,
+      [ "address", "address" ],
+      [
+        ethers.utils.getAddress(rollupAddress),
+        ethers.utils.getAddress(resolverVerifierAddress)
+     ]
+  )
+  const hasherAddress = generateCreate2Address(
+      deploymentSalts[5],
+      hasherArtifact.bytecode.object
   )
 
   for(var x = 0; x < contractArtifacts.length; x++){
     contractAddresses[x] = generateCreate2Address(
-        factoryAddress,
         deploymentSalts[x],
-        contractArtifacts[x].bytecode.object
+        contractArtifacts[x].bytecode.object,
+        [ "address", "address", "uint256", "uint32" ],
+        [
+          ethers.utils.getAddress(tornadoVerifierAddress),
+          ethers.utils.getAddress(hasherAddress),
+          ethers.utils.parseEther(contractDenominations[x]),
+          toFixedHex(16, 16)
+       ]
     )
     contractParameters[x] = {
       hop: generateCommitment(),
@@ -159,7 +174,7 @@ async function generateProofsAndAddresses() {
     .insert(contractParameters[x].hop.commitment)
 
     const treeLength = contractTrees[x].elements().length
-    const resolverRoot = contractTrees[x].root()
+    const resolverRoot = toFixedHex(contractTrees[x].root())
 
     contractParameters[x] = {
       resolverRoot,
@@ -193,7 +208,7 @@ async function generateProofsAndAddresses() {
 
     contractTrees[x]
     .insert(contractParameters[x].withdrawal.commitment)
-    const withdrawalRoot = contractTrees[x].root()
+    const withdrawalRoot = toFixedHex(contractTrees[x].root())
 
     contractParameters[x] = {
       withdrawalRoot,
@@ -214,6 +229,10 @@ async function generateProofsAndAddresses() {
     )
   }
 
+  contractAddresses.push(resolverAddress)
+  contractAddresses.push(tornadoVerifierAddress)
+  contractAddresses.push(hasherAddress)
+
   return [
     contractAddresses, contractParameters
   ]
@@ -226,43 +245,50 @@ async function formatContractParameters(
   const solFileContents = fs.readFileSync(targetPath, "utf8")
   const splitContent = solFileContents.split('\n')
 
-  splitContent[41] = " " + splitContent[41].slice(
+  splitContent[36] = " " + splitContent[36].slice(
+    0, splitContent[36].length - 2
+  ) + `${ethers.utils.getAddress(addresses[0])},`
+  splitContent[37] = " " + splitContent[37].slice(
+    0, splitContent[37].length - 2
+  ) + `${ethers.utils.getAddress(addresses[1])},`
+  splitContent[38] = " " + splitContent[38].slice(
+    0, splitContent[38].length - 2
+  ) + `${ethers.utils.getAddress(addresses[2])},`
+  splitContent[39] = " " + splitContent[39].slice(
+    0, splitContent[39].length - 2
+  ) + `${ethers.utils.getAddress(addresses[3])},`
+  splitContent[40] = " " + splitContent[40].slice(
+    0, splitContent[40].length - 2
+  ) + `${ethers.utils.getAddress(addresses[4])},`
+  splitContent[41] = " " + splitContent[35].slice(
     0, splitContent[41].length - 2
-  ) + `${addresses[0]},`
-  splitContent[42] = " " + splitContent[42].slice(
-    0, splitContent[42].length - 2
-  ) + `${addresses[1]},`
-  splitContent[43] = " " + splitContent[43].slice(
-    0, splitContent[43].length - 2
-  ) + `${addresses[2]},`
-  splitContent[44] = " " + splitContent[44].slice(
-    0, splitContent[44].length - 2
-  ) + `${addresses[3]}`
+  ) + `${ethers.utils.getAddress(addresses[5])}`
 
+  splitContent[67] = " " + splitContent[67].slice(
+    0, splitContent[67].length - 2
+  ).replace('"', '')  + `${toFixedHex(parameters[0].hop.nullifierHash)},`
+  splitContent[68] = " " + splitContent[68].slice(
+    0, splitContent[68].length - 2
+  ).replace('"', '')  + `${toFixedHex(parameters[0].withdrawal.nullifierHash)},`
+  splitContent[69] = " " + splitContent[69].slice(
+    0, splitContent[69].length - 2
+  ).replace('"', '')  + `${parameters[0].resolverRoot},`
   splitContent[70] = " " + splitContent[70].slice(
     0, splitContent[70].length - 2
-  ) + `${parameters[0].hop.nullifierHash}",`
-  splitContent[71] = " " + splitContent[71].slice(
-    0, splitContent[71].length - 2
-  ) + `${parameters[0].withdrawal.nullifierHash}",`
+  ).replace('"', '') + `${parameters[0].withdrawalRoot},`
+
   splitContent[72] = " " + splitContent[72].slice(
     0, splitContent[72].length - 2
-  ) + `${parameters[0].resolverRoot}",`
+  ) + `${parameters[0].proofs[0]}",`
   splitContent[73] = " " + splitContent[73].slice(
     0, splitContent[73].length - 2
-  ) + `${parameters[0].withdrawalRoot}",`
-  splitContent[75] = " " + splitContent[75].slice(
-    0, splitContent[75].length - 2
-  ) + `${parameters[0].proofs[0]}",`
-  splitContent[76] = " " + splitContent[76].slice(
-    0, splitContent[76].length - 2
   ) + `${parameters[0].proofs[1]}",`
-  splitContent[76] = " " + splitContent[76].slice(
-    0, splitContent[76].length - 2
+  splitContent[74] = " " + splitContent[74].slice(
+    0, splitContent[74].length - 2
   ) + `${parameters[0].proofs[2]}",`
-  splitContent[77] = " " + splitContent[77].slice(
-    0, splitContent[77].length - 2
-  ) + `${parameters[0].proofs[3]}",`
+  splitContent[75] = " " + splitContent[75].slice(
+    0, splitContent[75].length - 1
+  ) + `${parameters[0].proofs[3]}"`
 
   fs.writeFileSync(targetPath, splitContent.join('\n'))
 

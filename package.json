@@ -8,7 +8,7 @@
     "compile:typechain": "forge build && hardhat compile ",
     "compile:client-dest": "tsc --project tsconfig.client-dest.json && node package-client-dest.js",
     "clean": "rm -rf ./cache ./dest ./out ./artifacts ./typechain-types",
-    "test": "yarn test:contracts && yarn test:clients",
+    "test": "forge test --sender 0x627306090abaB3A6e1400e9345bC60c78a8BEf57",
     "test:client": "jest test",
     "test:contracts": "forge test -vvv",
     "build:resolve": "node node_modules/websnark/tools/buildpkey.js -i artifacts/zkeys/resolve_proving_key.json -o artifacts/zkeys/resolve_proving_key.bin",
@@ -21,12 +21,13 @@
   "dependencies": {
     "circom": "0.0.35",
     "circomlib": "git+https://github.com/tornadocash/circomlib.git#c372f14d324d57339c88451834bf2824e73bbdbc",
-    "websnark": "git+https://github.com/tornadocash/websnark.git#4c0af6a8b65aabea3c09f377f63c44e7a58afa6d",
-    "snarkjs": "git+https://github.com/tornadocash/snarkjs.git#869181cfaf7526fe8972073d31655493a04326d5",
     "ethers": "^5.5.4",
+    "fixed-merkle-tree": "^0.6.0",
     "rlp": "^3.0.0",
+    "snarkjs": "git+https://github.com/tornadocash/snarkjs.git#869181cfaf7526fe8972073d31655493a04326d5",
     "typescript": "^4.5.5",
-    "fixed-merkle-tree": "^0.6.0"
+    "web3": "^1.7.1",
+    "websnark": "git+https://github.com/tornadocash/websnark.git#4c0af6a8b65aabea3c09f377f63c44e7a58afa6d"
   },
   "jest": {
     "transform": {
