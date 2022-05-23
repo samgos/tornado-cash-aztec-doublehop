@@ -323,4 +323,8 @@ contract RollupProcessor is DSTest {
     function getDefiInteractionBlockNumber(uint256 interactionNonce) external view returns (uint256 blockNumber) {
         blockNumber = interactionNonce / NUMBER_OF_BRIDGE_CALLS;
     }
+
+    function getEthPaymentsSlot(uint256 interactionNonce) external view returns (uint256 depositValue) {
+      depositValue = ethPayments[interactionNonce];
+    }
 }
