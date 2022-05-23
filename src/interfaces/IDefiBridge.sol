@@ -33,7 +33,7 @@ interface IDefiBridge {
    * 3 4: DAO voting stuff.
    */
 
-  // @dev This function is called from the RollupProcessor.sol contract via the DefiBridgeProxy. It receives the aggreagte sum of all users funds for the input assets.
+  // @dev This function is called from the RollupProcessor.sol contract via the DefiBridgeProxy. It receives the aggregate sum of all users funds for the input assets.
   // @param AztecAsset inputAssetA a struct detailing the first input asset, this will always be set
   // @param AztecAsset inputAssetB an optional struct detailing the second input asset, this is used for repaying borrows and should be virtual
   // @param AztecAsset outputAssetA a struct detailing the first output asset, this will always be set
@@ -51,17 +51,19 @@ interface IDefiBridge {
     AztecTypes.AztecAsset calldata outputAssetB,
     uint256 inputValue,
     uint256 interactionNonce,
-    uint256 auxData
+    uint256 auxData,
+    address rollupBeneficiary
   )
     external
     payable
+    virtual
     returns (
       uint256 outputValueA,
       uint256 outputValueB,
       bool isAsync
     );
 
-  // @dev This function is called from the RollupProcessor.sol contract via the DefiBridgeProxy. It receives the aggreagte sum of all users funds for the input assets.
+  // @dev This function is called from the RollupProcessor.sol contract via the DefiBridgeProxy. It receives the aggregate sum of all users funds for the input assets.
   // @param AztecAsset inputAssetA a struct detailing the first input asset, this will always be set
   // @param AztecAsset inputAssetB an optional struct detailing the second input asset, this is used for repaying borrows and should be virtual
   // @param AztecAsset outputAssetA a struct detailing the first output asset, this will always be set
@@ -78,7 +80,7 @@ interface IDefiBridge {
     AztecTypes.AztecAsset calldata outputAssetB,
     uint256 interactionNonce,
     uint64 auxData
-  ) external payable returns (uint256 outputValueA, uint256 outputValueB, bool interactionComplete);
+  ) external payable virtual returns (uint256 outputValueA, uint256 outputValueB, bool interactionComplete);
 
 
 }

@@ -1,7 +1,0 @@
-node_modules/
-lib/ds-test/
-cache/
-artifacts/circuits
-out/
-yarn-error.log
-yarn.lock 
