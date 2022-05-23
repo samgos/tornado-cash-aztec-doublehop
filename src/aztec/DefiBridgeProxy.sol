@@ -3,13 +3,14 @@
 pragma solidity >=0.8.4 <0.8.11;
 pragma experimental ABIEncoderV2;
 
-import {SafeMath} from "@openzeppelin/contracts/v4/utils/math/SafeMath.sol";
 import {IDefiBridge} from "../interfaces/IDefiBridge.sol";
 import {AztecTypes} from "./AztecTypes.sol";
 
 import {TokenTransfers} from "../libraries/TokenTransfers.sol";
 
-import "ds-test/test.sol";
+import "../../lib/ds-test/src/test.sol";
+
+import { console } from 'forge-std/console.sol';
 
 contract DefiBridgeProxy is DSTest {
     bytes4 private constant BALANCE_OF_SELECTOR = 0x70a08231; // bytes4(keccak256('balanceOf(address)'));
@@ -167,7 +168,8 @@ contract DefiBridgeProxy is DSTest {
             outputAssetB,
             totalInputValue,
             interactionNonce,
-            auxInputData
+            uint64(auxInputData),
+            address(0)
         );
 
         if (isAsync) {
