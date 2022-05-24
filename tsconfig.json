@@ -18,5 +18,8 @@
   "files": [
     "scripts/*.ts",
     "types.d.ts"
+  ],
+  "include": [
+    "scripts/*.ts"
   ]
 }
