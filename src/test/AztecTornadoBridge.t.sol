@@ -39,11 +39,14 @@ contract AztecTornadoBridgeTest is DSTest {
       aztecTornadoBridge = AztecTornadoBridge(bridge);
     }
 
-    function testCaseOne(bytes32 commitment) payable public {
-      vm.deal(address(this), 1 ether);
+    function testDeposit(
+      bytes32 commitment,
+      uint256 interactionNonce,
+      uint256 depositAmount
+    ) payable public {
+      vm.deal(address(this), depositAmount);
 
-      uint256 inputAmount = 1 ether;
-      uint256 interactionNonce = uint256(1);
+      uint256 inputAmount = depositAmount;
       AztecTypes.AztecAsset memory uninitAsset;
       AztecTypes.AztecAsset memory inputAsset = AztecTypes.AztecAsset({
           id: 1,
@@ -54,7 +57,7 @@ contract AztecTornadoBridgeTest is DSTest {
       uninitAsset.assetType = AztecTypes.AztecAssetType.NOT_USED;
 
       rollupProcessor.receiveEthFromBridge{
-        value: 1 ether
+        value: inputAmount
       }( interactionNonce );
       rollupProcessor.convert(
           address(aztecTornadoBridge),

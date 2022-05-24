@@ -1,7 +1,5 @@
 import fs from "fs"
 
-const withdrawCircuit = require("../artifacts/circuits/withdraw.json")
-
 import { bigInt } from "snarkjs"
 import { babyJub, pedersenHash } from "circomlib"
 import { createHash, randomBytes } from "crypto"
@@ -40,38 +38,11 @@ export function genCommitment() {
 export async function genProof(
   circuit: any,
   input: any,
-  proving_key: any,
+  provingKeyPath: any,
   groth: any
 ) {
-  const {
-    nullifierHash, secret, nullifier, recipient
-  } = input
-  proving_key = fs.readFileSync(proving_key).buffer
-
-  let formattedInputs
-
-  if(circuit == withdrawCircuit) {
-    formattedInputs = stringifyBigInts({
-      pathElements: input.pathElements,
-      pathIndices: input.pathIndices,
-      relayer: input.relayer,
-      root: input.root,
-      refund: bigInt(0),
-      fee: bigInt(1e17),
-      nullifierHash,
-      recipient,
-      nullifier,
-      secret
-    })
-  } else {
-    formattedInputs = stringifyBigInts({
-      withdrawalAddress: recipient,
-      nullifierHash,
-      nullifier,
-      secret
-    })
-  }
-
+  const proving_key = fs.readFileSync(provingKeyPath).buffer
+  const formattedInputs = stringifyBigInts(input)
   const e = await websnarkUtils.genWitnessAndProve(
     groth, formattedInputs, circuit, proving_key
   )

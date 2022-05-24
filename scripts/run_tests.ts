@@ -1,6 +1,6 @@
-import path from "path"
 import { expect } from "chai"
 import { ethers } from "ethers"
+import { bigInt } from "snarkjs"
 
 import genContract from "circomlib/src/mimcsponge_gencontract.js"
 import buildGroth16 from "websnark/src/groth16"
@@ -8,24 +8,15 @@ import MerkleTree from "fixed-merkle-tree"
 
 import { toFixedHex, perdersen, genProof, encodeParam, genCommitment } from "./utils.ts"
 
-const withdrawVeriferArtifact = require("../out/WithdrawVerifier.sol/Verifier.json")
-const resolverVerifierArtifact = require("../out/ResolveVerifier.sol/Verifier.json")
-const resolverArtifact = require( "../out/AztecResolver.sol/AztecResolver.json")
-const tornadoArtifact = require("../out/ETHTornado.sol/ETHTornado.json")
-const rollupArtifact = require( "../out/RollupProcessor.sol/RollupProcessor.json")
-const bridgeArtifact = require( "../out/AztecTornadoBridge.sol/AztecTornadoBridge.json")
-const testArtifact = require( "../out/AztecTornadoBridge.t.sol/AztecTornadoBridgeTest.json")
-const bridgeProxyArtifact = require("../out/DefiBridgeProxy.sol/DefiBridgeProxy.json")
-const withdrawCircuit = require("../artifacts/circuits/withdraw.json")
-const resolveCircuit = require("../artifacts/circuits/resolve.json")
+import {
+  PATH_RESOLVER_PROVING_KEY, PATH_RESOLVER, PATH_RESOLVER_CIRCUIT, PATH_RESOLVER_VERIFIER,
+  PATH_WITHDRAW_PROVING_KEY, PATH_WITHDRAW_CIRCUIT, PATH_WITHDRAW_VERIFIER,
+  PATH_BRIDGE_IMPL, PATH_BRIDGE_TEST, PATH_BRIDGE_PROXY,
+  PATH_ROLLUP_PROCESSOR, PATH_TORNADO_INSTANCE,
+  RPC_ENDPOINT, RPC_PRIVATE_KEY,
+  ZERO_ADDRESS
+} from "./constants.ts"
 
-const withdrawProvingKey = "./artifacts/zkeys/withdraw_proving_key.bin"
-const resolverProvingKey = "./artifacts/zkeys/resolve_proving_key.bin"
-
-const RPC_PRIVATE_KEY = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
-const RPC_ENDPOINT = "http://127.0.0.1:8545"
-
-const destinationAddress = "0x0000000000000000000000000000000000000000"
 
 async function deploy(artifact, signer, args) {
   const factory = new ethers.ContractFactory(
@@ -36,70 +27,53 @@ async function deploy(artifact, signer, args) {
 }
 
 describe("AztecTornadoBridge", () => {
-  let tornadoInstances = [];
+  let tornadoInstances = [ "1.00", "10.00", "100.00" ];
   let aztecTornadoBridge;
-  let resolverVerifier;
-  let withdrawVerifer;
   let commitmentTree;
-  let rollupProcessor;
   let testContract;
   let resolver;
   let provider;
   let groth16;
-  let hasher;
   let wallet;
-  let secret;
+  let confidental;
 
   before(async() => {
-    commitmentTree = new MerkleTree(16)
+    confidental = genCommitment()
     groth16 = await buildGroth16()
-    secret = genCommitment()
+    commitmentTree = new MerkleTree(16)
 
-    provider = new ethers.providers.JsonRpcProvider(RPC_ENDPOINT);
-    wallet = new ethers.Wallet(RPC_PRIVATE_KEY, provider);
+    provider = new ethers.providers.JsonRpcProvider(RPC_ENDPOINT)
+    wallet = new ethers.Wallet(RPC_PRIVATE_KEY, provider)
   })
 
   it("Deployments", async() => {
-    resolverVerifier = await deploy(resolverVerifierArtifact, wallet, []);
-    withdrawVerifer = await deploy(withdrawVeriferArtifact, wallet, []);
-    hasher = await deploy(
+    const resolverVerifier = await deploy(PATH_RESOLVER_VERIFIER, wallet, [])
+    const withdrawVerifer = await deploy(PATH_WITHDRAW_VERIFIER, wallet, [])
+    const hasher = await deploy(
         { abi: genContract.abi,
           bytecode: {
             object: genContract.createCode("mimcsponge", 220)
           }
         }, wallet, []
+    )
+
+    const bridgeProxy = await deploy(PATH_BRIDGE_PROXY, wallet, [])
+    const rollupProcessor = await deploy(
+      PATH_ROLLUP_PROCESSOR, wallet, [ bridgeProxy.address ]
     );
 
-    tornadoInstances[2] = await deploy(
-        tornadoArtifact, wallet, [
+    for(var x = 0; x < tornadoInstances.length; x++) {
+      tornadoInstances[x] = await deploy(
+        PATH_TORNADO_INSTANCE, wallet, [
           hasher.address, withdrawVerifer.address,
-          ethers.utils.parseEther("100.00"),
+          ethers.utils.parseEther(tornadoInstances[x]),
           toFixedHex(16, 2)
         ]
-    );
-    tornadoInstances[1] = await deploy(
-        tornadoArtifact, wallet, [
-          hasher.address, withdrawVerifer.address,
-          ethers.utils.parseEther("10.00"),
-          toFixedHex(16, 2)
-        ]
-    );
-    tornadoInstances[0] = await deploy(
-        tornadoArtifact, wallet, [
-          hasher.address, withdrawVerifer.address,
-          ethers.utils.parseEther("1.00"),
-          toFixedHex(16, 2)
-        ]
-    );
-
-    const bridgeProxy = await deploy(bridgeProxyArtifact, wallet, [])
-
-    rollupProcessor = await deploy(
-      rollupArtifact, wallet, [ bridgeProxy.address ]
-    );
+      )
+    }
 
     aztecTornadoBridge = await deploy(
-      bridgeArtifact, wallet, [
+      PATH_BRIDGE_IMPL, wallet, [
         tornadoInstances[2].address,
         tornadoInstances[1].address,
         tornadoInstances[0].address,
@@ -108,14 +82,14 @@ describe("AztecTornadoBridge", () => {
     );
 
     resolver = await deploy(
-      resolverArtifact, wallet, [
+      PATH_RESOLVER, wallet, [
         rollupProcessor.address,
         resolverVerifier.address
       ]
     );
 
     testContract = await deploy(
-      testArtifact, wallet, [
+      PATH_BRIDGE_TEST, wallet, [
         aztecTornadoBridge.address,
         rollupProcessor.address,
         resolver.address
@@ -124,13 +98,15 @@ describe("AztecTornadoBridge", () => {
   })
 
   it("Can deposit to tornado from L2", async() => {
-    await testContract.testCaseOne(
-      toFixedHex(secret.commitment), {
-      from: wallet.address,
-      gasLimit: 6000000,
+    await testContract.testDeposit(
+      toFixedHex(confidental.commitment),
+      toFixedHex(1),
+      ethers.utils.parseEther("1.00"), {
+        from: wallet.address,
+        gasLimit: 6000000,
     });
 
-    commitmentTree.insert(secret.commitment);
+    commitmentTree.insert(confidental.commitment);
   })
 
   it("Can withdraw from tornado to L2", async() => {
@@ -138,22 +114,28 @@ describe("AztecTornadoBridge", () => {
     const currentRoot = commitmentTree.root()
 
     const withdrawalProof = await genProof(
-      withdrawCircuit, {
+      PATH_WITHDRAW_CIRCUIT, {
         ...commitmentTree.path(treeLength - 1),
-        ...secret,
-        root: currentRoot,
+        nullifierHash: confidental.nullifierHash,
+        nullifier: confidental.nullifier,
+        secret: confidental.secret,
         relayer: wallet.address,
-        recipient: resolver.address
+        recipient: resolver.address,
+        root: currentRoot,
+        refund: bigInt(0),
+        fee: bigInt(1e17)
       },
-      withdrawProvingKey,
+      PATH_WITHDRAW_PROVING_KEY,
       groth16
     )
     const resolverProof = await genProof(
-      resolveCircuit, {
-        ...secret,
-        recipient: wallet.address
+      PATH_RESOLVER_CIRCUIT, {
+        nullifierHash: confidental.nullifierHash,
+        nullifier: confidental.nullifier,
+        secret: confidental.secret,
+        withdrawalAddress: wallet.address
       },
-      resolverProvingKey,
+      PATH_RESOLVER_PROVING_KEY,
       groth16
     )
 
@@ -161,7 +143,7 @@ describe("AztecTornadoBridge", () => {
       [ withdrawalProof, resolverProof ],
       toFixedHex(0),
       toFixedHex(currentRoot),
-      toFixedHex(secret.nullifierHash),
+      toFixedHex(confidental.nullifierHash),
       toFixedHex(resolver.address, 20),
       toFixedHex(wallet.address, 20),
       toFixedHex(destinationAddress, 20),
@@ -172,5 +154,11 @@ describe("AztecTornadoBridge", () => {
         gasLimit: 6000000,
       })
   })
+
+  it('should throw on spent nullifierHashes', async() => {})
+
+  it('should throw on spent nonces', async() => { })
+
+  it('should throw on address tampering', async() => { })
 
 })
