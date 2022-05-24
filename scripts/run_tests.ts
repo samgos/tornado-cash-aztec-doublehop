@@ -1,17 +1,12 @@
-import fs from "fs"
 import path from "path"
 import { expect } from "chai"
+import { ethers } from "ethers"
 
 import genContract from "circomlib/src/mimcsponge_gencontract.js"
-import websnarkUtils from "websnark/src/utils"
 import buildGroth16 from "websnark/src/groth16"
 import MerkleTree from "fixed-merkle-tree"
 
-import { ethers } from "ethers"
-import { bigInt } from "snarkjs"
-import { babyJub, pedersenHash } from "circomlib"
-import { createHash, randomBytes } from "crypto"
-import { stringifyBigInts } from "websnark/tools/stringifybigint"
+import { toFixedHex, perdersen, genProof, encodeParam, genCommitment } from "./utils.ts"
 
 const withdrawVeriferArtifact = require("../out/WithdrawVerifier.sol/Verifier.json")
 const resolverVerifierArtifact = require("../out/ResolveVerifier.sol/Verifier.json")
@@ -19,8 +14,10 @@ const resolverArtifact = require( "../out/AztecResolver.sol/AztecResolver.json")
 const tornadoArtifact = require("../out/ETHTornado.sol/ETHTornado.json")
 const rollupArtifact = require( "../out/RollupProcessor.sol/RollupProcessor.json")
 const bridgeArtifact = require( "../out/AztecTornadoBridge.sol/AztecTornadoBridge.json")
+const testArtifact = require( "../out/AztecTornadoBridge.t.sol/AztecTornadoBridgeTest.json")
 const bridgeProxyArtifact = require("../out/DefiBridgeProxy.sol/DefiBridgeProxy.json")
 const withdrawCircuit = require("../artifacts/circuits/withdraw.json")
+const resolveCircuit = require("../artifacts/circuits/resolve.json")
 
 const withdrawProvingKey = "./artifacts/zkeys/withdraw_proving_key.bin"
 const resolverProvingKey = "./artifacts/zkeys/resolve_proving_key.bin"
@@ -28,82 +25,13 @@ const resolverProvingKey = "./artifacts/zkeys/resolve_proving_key.bin"
 const RPC_PRIVATE_KEY = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
 const RPC_ENDPOINT = "http://127.0.0.1:8545"
 
-const defaultRelayer = "0x627306090abaB3A6e1400e9345bC60c78a8BEf57"
-const destinationAddress = "0x000000000000000000000000000000000000"
+const destinationAddress = "0x0000000000000000000000000000000000000000"
 
-const rbigInt = (n: number) => bigInt.leBuff2int(randomBytes(n))
-const perdersen = (e: Buffer) => babyJub.unpackPoint(pedersenHash.hash(e))[0]
-const toFixedHex = (number:any, length = 32) =>
-  '0x' +
-  bigInt(number)
-    .toString(16)
-    .padStart(length * 2, '0')
-
-const encodeParam = (dataType: any, data: any) => {
-  const abiCoder = ethers.utils.defaultAbiCoder
-  return abiCoder.encode(dataType, data)
-}
-
-function generateCommitment() {
-  const [ nullifier, secret ]  = [ rbigInt(31), rbigInt(31) ]
-  const buffer = Buffer.concat([
-      nullifier.leInt2Buff(31), secret.leInt2Buff(31)
-  ])
-  const nullifierHash = perdersen(nullifier.leInt2Buff(31))
-  const commitment = perdersen(buffer)
-
-  return {
-    nullifierHash,
-    commitment,
-    nullifier,
-    secret
-  }
-}
-
-async function generateProof(
-  circuit: any,
-  input: any,
-  proving_key: any,
-  groth: any
-) {
-  const {
-    nullifierHash, secret, nullifier, recipient
-  } = input
-  proving_key = fs.readFileSync(proving_key).buffer
-
-  let formattedInputs
-
-  if(circuit == withdrawCircuit) {
-    formattedInputs = stringifyBigInts({
-      pathElements: input.pathElements,
-      pathIndices: input.pathIndices,
-      relayer: input.relayer,
-      root: input.root,
-      refund: bigInt(0),
-      fee: bigInt(1e17),
-      nullifierHash,
-      recipient,
-      nullifier,
-      secret
-    })
-  } else {
-    formattedInputs = stringifyBigInts({
-      withdrawalAddress: recipient,
-      nullifierHash,
-      nullifier,
-      secret
-    })
-  }
-
-  const e = await websnarkUtils.genWitnessAndProve(
-    groth, formattedInputs, circuit, proving_key
+async function deploy(artifact, signer, args) {
+  const factory = new ethers.ContractFactory(
+    artifact.abi, artifact.bytecode.object,
+    signer
   )
-
-  return toFixedHex(websnarkUtils.toSolidityInput(e).proof)
-}
-
-async function createAndDeploy(abi, bytecode, signer, args) {
-  const factory = new ethers.ContractFactory(abi, bytecode, signer);
   return await factory.deploy(...args)
 }
 
@@ -112,83 +40,66 @@ describe("AztecTornadoBridge", () => {
   let aztecTornadoBridge;
   let resolverVerifier;
   let withdrawVerifer;
+  let commitmentTree;
   let rollupProcessor;
+  let testContract;
   let resolver;
   let provider;
+  let groth16;
   let hasher;
   let wallet;
+  let secret;
 
-  before(() => {
+  before(async() => {
+    commitmentTree = new MerkleTree(16)
+    groth16 = await buildGroth16()
+    secret = genCommitment()
+
     provider = new ethers.providers.JsonRpcProvider(RPC_ENDPOINT);
     wallet = new ethers.Wallet(RPC_PRIVATE_KEY, provider);
   })
 
   it("Deployments", async() => {
-    resolverVerifier = await createAndDeploy(
-      resolverVerifierArtifact.abi,
-      resolverVerifierArtifact.bytecode.object,
-      wallet, []
-    );
-    withdrawVerifer = await createAndDeploy(
-      withdrawVeriferArtifact.abi,
-      withdrawVeriferArtifact.bytecode.object,
-      wallet, []
-    );
-    hasher = await createAndDeploy(
-        genContract.abi,
-        genContract.createCode("mimcsponge", 220),
-        wallet, []
+    resolverVerifier = await deploy(resolverVerifierArtifact, wallet, []);
+    withdrawVerifer = await deploy(withdrawVeriferArtifact, wallet, []);
+    hasher = await deploy(
+        { abi: genContract.abi,
+          bytecode: {
+            object: genContract.createCode("mimcsponge", 220)
+          }
+        }, wallet, []
     );
 
-    tornadoInstances[2] = await createAndDeploy(
-        tornadoArtifact.abi,
-        tornadoArtifact.bytecode.object,
-        wallet, [
-          hasher.address,
-          withdrawVerifer.address,
+    tornadoInstances[2] = await deploy(
+        tornadoArtifact, wallet, [
+          hasher.address, withdrawVerifer.address,
           ethers.utils.parseEther("100.00"),
           toFixedHex(16, 2)
         ]
     );
-
-    tornadoInstances[1] = await createAndDeploy(
-        tornadoArtifact.abi,
-        tornadoArtifact.bytecode.object,
-        wallet, [
-          hasher.address,
-          withdrawVerifer.address,
+    tornadoInstances[1] = await deploy(
+        tornadoArtifact, wallet, [
+          hasher.address, withdrawVerifer.address,
           ethers.utils.parseEther("10.00"),
           toFixedHex(16, 2)
         ]
     );
-
-    tornadoInstances[0] = await createAndDeploy(
-        tornadoArtifact.abi,
-        tornadoArtifact.bytecode.object,
-        wallet, [
-          hasher.address,
-          withdrawVerifer.address,
+    tornadoInstances[0] = await deploy(
+        tornadoArtifact, wallet, [
+          hasher.address, withdrawVerifer.address,
           ethers.utils.parseEther("1.00"),
           toFixedHex(16, 2)
         ]
     );
 
-    const bridgeProxy = await createAndDeploy(
-      bridgeProxyArtifact.abi,
-      bridgeProxyArtifact.bytecode.object, wallet, []
-    )
+    const bridgeProxy = await deploy(bridgeProxyArtifact, wallet, [])
 
-    rollupProcessor = await createAndDeploy(
-      rollupArtifact.abi,
-      rollupArtifact.bytecode.object, wallet, [
-        bridgeProxy.address
-      ]
+    rollupProcessor = await deploy(
+      rollupArtifact, wallet, [ bridgeProxy.address ]
     );
 
-    aztecTornadoBridge = await createAndDeploy(
-      bridgeArtifact.abi,
-      bridgeArtifact.bytecode.object,
-      wallet, [
+    aztecTornadoBridge = await deploy(
+      bridgeArtifact, wallet, [
         tornadoInstances[2].address,
         tornadoInstances[1].address,
         tornadoInstances[0].address,
@@ -196,15 +107,70 @@ describe("AztecTornadoBridge", () => {
       ]
     );
 
-    resolver = await createAndDeploy(
-      resolverArtifact.abi,
-      resolverArtifact.bytecode.object,
-      wallet, [
+    resolver = await deploy(
+      resolverArtifact, wallet, [
         rollupProcessor.address,
         resolverVerifier.address
       ]
     );
 
+    testContract = await deploy(
+      testArtifact, wallet, [
+        aztecTornadoBridge.address,
+        rollupProcessor.address,
+        resolver.address
+      ]
+    );
+  })
+
+  it("Can deposit to tornado from L2", async() => {
+    await testContract.testCaseOne(
+      toFixedHex(secret.commitment), {
+      from: wallet.address,
+      gasLimit: 6000000,
+    });
+
+    commitmentTree.insert(secret.commitment);
+  })
+
+  it("Can withdraw from tornado to L2", async() => {
+    const treeLength = commitmentTree.elements().length
+    const currentRoot = commitmentTree.root()
+
+    const withdrawalProof = await genProof(
+      withdrawCircuit, {
+        ...commitmentTree.path(treeLength - 1),
+        ...secret,
+        root: currentRoot,
+        relayer: wallet.address,
+        recipient: resolver.address
+      },
+      withdrawProvingKey,
+      groth16
+    )
+    const resolverProof = await genProof(
+      resolveCircuit, {
+        ...secret,
+        recipient: wallet.address
+      },
+      resolverProvingKey,
+      groth16
+    )
+
+    await resolver.withdraw(
+      [ withdrawalProof, resolverProof ],
+      toFixedHex(0),
+      toFixedHex(currentRoot),
+      toFixedHex(secret.nullifierHash),
+      toFixedHex(resolver.address, 20),
+      toFixedHex(wallet.address, 20),
+      toFixedHex(destinationAddress, 20),
+      toFixedHex(tornadoInstances[0].address, 20),
+      ethers.utils.parseEther("0.01"),
+      ethers.utils.parseEther("0.00"), {
+        from: wallet.address,
+        gasLimit: 6000000,
+      })
   })
 
 })
